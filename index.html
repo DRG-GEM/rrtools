@@ -1,10 +1,11 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Caja de Herramientas Digital</title>
+    <!-- 1. Pega aquí el enlace 'raw' de tu logo en GitHub -->
+    <link rel="icon" type="image/png" href="https://github.com/DRG-GEM/rrtools/blob/main/rrtools.png?raw=true">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.min.js"></script>
@@ -21,7 +22,6 @@
             transform: translateY(-5px);
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
         }
-        /* Estilos para el modal de mensajes */
         .modal {
             display: none;
             position: fixed;
@@ -56,21 +56,18 @@
 </head>
 <body class="bg-gray-100 text-gray-800">
 
-    <!-- Contenedor principal -->
     <div id="app" class="container mx-auto p-4 md:p-8">
-
-        <!-- Pantalla de inicio (Selección de herramientas) -->
         <div id="home-screen">
             <header class="text-center mb-10">
-                <!-- CORREGIDO: Enlace directo a la imagen PNG en Imgur -->
-                <img src="https://i.imgur.com/Q9IVdib.png" 
-                     alt="Logo del Colegio Virgen del Pasico" 
-                     class="mx-auto mb-4 h-24 w-24 rounded-full object-cover shadow-md">
+                 <!-- 2. Pega aquí el MISMO enlace 'raw' de tu logo en GitHub -->
+                <img src="https://github.com/DRG-GEM/rrtools/blob/main/rrtools.png?raw=true" 
+                     alt="Logo del Colegio" 
+                     class="mx-auto mb-4 h-24 object-contain">
                 <h1 class="text-4xl md:text-5xl font-bold text-gray-900">Caja de Herramientas Digital</h1>
                 <p class="text-lg text-gray-600 mt-2">Tus utilidades esenciales en un solo lugar.</p>
             </header>
 
-            <main id="tool-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <main id="tool-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
                 <!-- Tarjeta: PDF a JPG -->
                 <div onclick="showTool('pdf-to-jpg')" class="tool-card bg-white p-6 rounded-lg shadow-md cursor-pointer flex flex-col items-center text-center">
                     <svg class="w-16 h-16 mb-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
@@ -141,8 +138,8 @@
             <div id="jpg-to-pdf" class="tool-content hidden bg-white p-8 rounded-lg shadow-lg">
                 <h2 class="text-3xl font-bold mb-6 text-center">Convertir JPG a PDF</h2>
                 <div class="max-w-md mx-auto">
-                    <label for="jpg-to-pdf-input" class="block mb-2 text-sm font-medium text-gray-700">Selecciona una o más imágenes JPG:</label>
-                    <input type="file" id="jpg-to-pdf-input" accept="image/jpeg" multiple class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100"/>
+                    <label for="jpg-to-pdf-input" class="block mb-2 text-sm font-medium text-gray-700">Selecciona una o más imágenes JPG/PNG:</label>
+                    <input type="file" id="jpg-to-pdf-input" accept="image/jpeg,image/png" multiple class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100"/>
                     <button id="jpg-to-pdf-button" class="mt-6 w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg disabled:bg-green-300" disabled>Convertir y Descargar PDF</button>
                     <div id="jpg-to-pdf-list" class="mt-4 text-sm text-gray-600"></div>
                 </div>
@@ -218,7 +215,6 @@
                     tool.classList.add('hidden');
                 }
             });
-            // Si la herramienta es el generador de contraseñas, generar una al mostrarla
             if (toolId === 'password-generator') {
                 generatePassword();
             }
@@ -359,25 +355,32 @@
             try {
                 const pdfDoc = await PDFDocument.create();
                 for (const file of jpgToPdfInput.files) {
-                    const jpgBytes = await file.arrayBuffer();
-                    const jpgImage = await pdfDoc.embedJpg(jpgBytes);
-                    const page = pdfDoc.addPage([jpgImage.width, jpgImage.height]);
-                    page.drawImage(jpgImage, {
+                     const arrayBuffer = await file.arrayBuffer();
+                     let image;
+                     if (file.type === 'image/jpeg') {
+                        image = await pdfDoc.embedJpg(arrayBuffer);
+                     } else if (file.type === 'image/png') {
+                        image = await pdfDoc.embedPng(arrayBuffer);
+                     } else {
+                        throw new Error('Formato de imagen no soportado. Usa JPG o PNG.');
+                     }
+                    const page = pdfDoc.addPage([image.width, image.height]);
+                    page.drawImage(image, {
                         x: 0,
                         y: 0,
-                        width: jpgImage.width,
-                        height: jpgImage.height,
+                        width: image.width,
+                        height: image.height,
                     });
                 }
                 const pdfBytes = await pdfDoc.save();
                 const blob = new Blob([pdfBytes], { type: 'application/pdf' });
                 const link = document.createElement('a');
                 link.href = URL.createObjectURL(blob);
-                link.download = 'convertido-desde-jpg.pdf';
+                link.download = 'convertido-desde-imagenes.pdf';
                 link.click();
             } catch (error) {
-                console.error('Error al convertir JPG a PDF:', error);
-                showMessage('Hubo un error al crear el PDF. Asegúrate de que todas las imágenes son JPG válidos.');
+                console.error('Error al convertir imagen a PDF:', error);
+                showMessage('Hubo un error al crear el PDF. Asegúrate de que todas las imágenes son JPG o PNG válidos.');
             } finally {
                 jpgToPdfButton.disabled = false;
                 jpgToPdfButton.textContent = 'Convertir y Descargar PDF';
@@ -433,7 +436,6 @@
         copyPasswordButton.addEventListener('click', () => {
             const password = passwordOutput.textContent;
             if (password && password !== 'TuContraseñaAquí' && password !== 'Selecciona opciones') {
-                // Usamos un método alternativo para copiar que funciona en iframes
                 const textArea = document.createElement("textarea");
                 textArea.value = password;
                 document.body.appendChild(textArea);
