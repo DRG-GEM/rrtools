@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Caja de Herramientas Digital</title>
-    <!-- 1. Pega aquí el enlace 'raw' de tu logo en GitHub -->
+    <title>RR Tools</title>
+    <!-- Favicon -->
     <link rel="icon" type="image/png" href="https://github.com/DRG-GEM/rrtools/blob/main/rrtools.png?raw=true">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -59,12 +59,12 @@
     <div id="app" class="container mx-auto p-4 md:p-8">
         <div id="home-screen">
             <header class="text-center mb-10">
-                 <!-- 2. Pega aquí el MISMO enlace 'raw' de tu logo en GitHub -->
+                 <!-- Logo con fondo circular -->
                 <img src="https://github.com/DRG-GEM/rrtools/blob/main/rrtools.png?raw=true" 
-                     alt="Logo del Colegio" 
-                     class="mx-auto mb-4 h-24 object-contain">
-                <h1 class="text-4xl md:text-5xl font-bold text-gray-900">Caja de Herramientas Digital</h1>
-                <p class="text-lg text-gray-600 mt-2">Tus utilidades esenciales en un solo lugar.</p>
+                     alt="Logo RR Tools" 
+                     class="mx-auto mb-4 h-24 w-24 rounded-full object-contain bg-white p-2 shadow-md">
+                <h1 class="text-4xl md:text-5xl font-bold text-gray-900">RR Tools</h1>
+                <p class="text-lg text-gray-600 mt-2">Tus utilidades digitales en un solo lugar.</p>
             </header>
 
             <main id="tool-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -323,7 +323,7 @@
                 link.href = URL.createObjectURL(blob);
                 link.download = 'documento-unido.pdf';
                 link.click();
-            } catch (error) {
+            } catch (error)
                 console.error('Error al unir los PDFs:', error);
                 showMessage('Hubo un error al unir los PDFs. Inténtalo de nuevo.');
             } finally {
@@ -485,3 +485,5 @@
     </script>
 </body>
 </html>
+```eof
+
