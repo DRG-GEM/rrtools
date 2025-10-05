@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RR Tools</title>
-    <!-- Favicon desde GitHub -->
+    <!-- Favicon -->
     <link rel="icon" type="image/png" href="https://github.com/DRG-GEM/rrtools/blob/main/rrtools.png?raw=true">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -62,7 +62,7 @@
         <div id="welcome-screen" class="flex flex-col items-center justify-center min-h-[80vh] text-center">
             <img src="https://github.com/DRG-GEM/rrtools/blob/main/rrtools.png?raw=true" 
                  alt="Logo RR Tools" 
-                 class="h-48 w-48 rounded-full object-contain bg-white p-4 shadow-xl mb-6">
+                 class="h-56 w-56 rounded-full object-contain bg-white p-4 shadow-xl mb-6">
             <h1 class="text-5xl md:text-6xl font-bold text-gray-900">RR Tools</h1>
             <p class="text-xl text-gray-600 mt-3">Tus utilidades digitales en un solo lugar.</p>
             <button onclick="enterApp()" class="mt-8 bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-8 rounded-full text-lg transition-transform transform hover:scale-105">
@@ -127,9 +127,12 @@
                 <!-- Herramienta: PDF a JPG -->
                 <div id="pdf-to-jpg" class="tool-content hidden bg-white p-8 rounded-lg shadow-lg">
                     <h2 class="text-3xl font-bold mb-6 text-center">Convertir PDF a JPG</h2>
-                    <div class="max-w-lg mx-auto">
-                        <label for="pdf-to-jpg-input" class="block mb-2 text-sm font-medium text-gray-700">Selecciona un archivo PDF:</label>
-                        <input type="file" id="pdf-to-jpg-input" accept=".pdf" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-red-50 file:text-red-700 hover:file:bg-red-100"/>
+                    <div class="max-w-lg mx-auto text-center">
+                        <label class="w-full inline-block cursor-pointer rounded-lg bg-red-500 px-4 py-3 text-center font-bold text-white hover:bg-red-600">
+                            <span>Seleccionar Archivo PDF</span>
+                            <input type="file" id="pdf-to-jpg-input" accept=".pdf" class="hidden"/>
+                        </label>
+                        <div id="pdf-to-jpg-filename" class="mt-4 text-sm text-gray-600"></div>
                         <div id="pdf-to-jpg-loader" class="hidden text-center mt-4">Procesando páginas...</div>
                         <div id="pdf-to-jpg-output" class="mt-6 grid grid-cols-2 md:grid-cols-3 gap-4"></div>
                     </div>
@@ -138,9 +141,11 @@
                 <!-- Herramienta: Unir PDF -->
                 <div id="merge-pdf" class="tool-content hidden bg-white p-8 rounded-lg shadow-lg">
                     <h2 class="text-3xl font-bold mb-6 text-center">Unir Archivos PDF</h2>
-                    <div class="max-w-lg mx-auto">
-                        <label for="merge-pdf-input" class="block mb-2 text-sm font-medium text-gray-700">Selecciona dos o más archivos PDF:</label>
-                        <input type="file" id="merge-pdf-input" accept=".pdf" multiple class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"/>
+                    <div class="max-w-lg mx-auto text-center">
+                        <label class="w-full inline-block cursor-pointer rounded-lg bg-blue-500 px-4 py-3 text-center font-bold text-white hover:bg-blue-600">
+                            <span>Seleccionar Archivos PDF</span>
+                            <input type="file" id="merge-pdf-input" accept=".pdf" multiple class="hidden"/>
+                        </label>
                         <div id="merge-pdf-list" class="mt-4 text-sm text-gray-600"></div>
                         <button id="merge-pdf-button" class="mt-6 w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-lg disabled:bg-blue-300" disabled>Unir y Descargar PDF</button>
                     </div>
@@ -149,9 +154,11 @@
                 <!-- Herramienta: JPG/PNG a PDF -->
                 <div id="jpg-to-pdf" class="tool-content hidden bg-white p-8 rounded-lg shadow-lg">
                     <h2 class="text-3xl font-bold mb-6 text-center">Convertir Imagen a PDF</h2>
-                    <div class="max-w-lg mx-auto">
-                        <label for="jpg-to-pdf-input" class="block mb-2 text-sm font-medium text-gray-700">Selecciona una o más imágenes JPG/PNG:</label>
-                        <input type="file" id="jpg-to-pdf-input" accept="image/jpeg,image/png" multiple class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100"/>
+                    <div class="max-w-lg mx-auto text-center">
+                         <label class="w-full inline-block cursor-pointer rounded-lg bg-green-500 px-4 py-3 text-center font-bold text-white hover:bg-green-600">
+                            <span>Seleccionar Imágenes (JPG/PNG)</span>
+                            <input type="file" id="jpg-to-pdf-input" accept="image/jpeg,image/png" multiple class="hidden"/>
+                        </label>
                         <div id="jpg-to-pdf-list" class="mt-4 text-sm text-gray-600"></div>
                         <button id="jpg-to-pdf-button" class="mt-6 w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg disabled:bg-green-300" disabled>Convertir y Descargar PDF</button>
                     </div>
@@ -267,10 +274,15 @@
         const pdfToJpgInput = document.getElementById('pdf-to-jpg-input');
         const pdfToJpgOutput = document.getElementById('pdf-to-jpg-output');
         const pdfToJpgLoader = document.getElementById('pdf-to-jpg-loader');
+        const pdfToJpgFilename = document.getElementById('pdf-to-jpg-filename');
 
         pdfToJpgInput.addEventListener('change', async (event) => {
             const file = event.target.files[0];
-            if (!file) return;
+            if (!file) {
+                pdfToJpgFilename.textContent = '';
+                return;
+            }
+            pdfToJpgFilename.textContent = `Archivo seleccionado: ${file.name}`;
 
             pdfToJpgOutput.innerHTML = '';
             pdfToJpgLoader.classList.remove('hidden');
@@ -318,10 +330,10 @@
             if (files.length > 1) {
                 mergePdfButton.disabled = false;
                 let fileNames = Array.from(files).map(f => f.name).join(', ');
-                mergePdfList.textContent = `Archivos seleccionados: ${fileNames}`;
+                mergePdfList.textContent = `Archivos seleccionados (${files.length}): ${fileNames}`;
             } else {
                 mergePdfButton.disabled = true;
-                mergePdfList.textContent = 'Por favor, selecciona al menos 2 archivos.';
+                 mergePdfList.textContent = files.length === 1 ? 'Por favor, selecciona al menos 2 archivos.' : '';
             }
         });
 
@@ -362,7 +374,7 @@
             if (files.length > 0) {
                 jpgToPdfButton.disabled = false;
                 let fileNames = Array.from(files).map(f => f.name).join(', ');
-                jpgToPdfList.textContent = `Imágenes seleccionadas: ${fileNames}`;
+                jpgToPdfList.textContent = `Imágenes seleccionadas (${files.length}): ${fileNames}`;
             } else {
                 jpgToPdfButton.disabled = true;
                 jpgToPdfList.textContent = '';
