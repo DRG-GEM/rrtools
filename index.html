@@ -72,7 +72,7 @@
                 <main id="tool-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
                     <!-- PDF a JPG -->
                     <div onclick="showTool('pdf-to-jpg')" class="tool-card bg-white p-6 rounded-lg shadow-md cursor-pointer flex flex-col items-center text-center">
-                        <svg class="w-16 h-16 mb-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 a 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                        <svg class="w-16 h-16 mb-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
                         <h2 class="text-xl font-semibold mb-2">PDF a JPG</h2>
                         <p class="text-gray-500">Convierte cada página de un PDF en una imagen.</p>
                     </div>
@@ -202,8 +202,8 @@
                 <div id="remove-bg" class="tool-content hidden bg-white p-8 rounded-lg shadow-lg">
                     <h2 class="text-3xl font-bold mb-6 text-center">Quitar Fondo de Imagen</h2>
                     <div class="max-w-xl mx-auto text-center">
-                        <div id="remove-bg-ready">
-                            <label class="w-full inline-block cursor-pointer rounded-lg bg-purple-500 px-4 py-3 text-center font-bold text-white hover:bg-purple-600">
+                        <div id="remove-bg-status">
+                             <label id="remove-bg-label" class="w-full inline-block cursor-pointer rounded-lg bg-purple-500 px-4 py-3 text-center font-bold text-white hover:bg-purple-600">
                                 <span>Seleccionar Imagen</span>
                                 <input type="file" id="remove-bg-input" accept="image/png, image/jpeg" class="hidden"/>
                             </label>
@@ -550,7 +550,7 @@
             const removeBgOriginal = document.getElementById('remove-bg-original');
             const removeBgResult = document.getElementById('remove-bg-result');
             const removeBgDownload = document.getElementById('remove-bg-download');
-            const removeBgReady = document.getElementById('remove-bg-ready');
+            const removeBgStatus = document.getElementById('remove-bg-status');
 
             removeBgInput.addEventListener('change', async (event) => {
                 const file = event.target.files[0];
@@ -561,7 +561,7 @@
                     return;
                 }
                 
-                removeBgReady.classList.add('hidden');
+                removeBgStatus.classList.add('hidden');
                 removeBgLoaderText.textContent = "Eliminando fondo... Esto puede tardar unos segundos.";
                 removeBgLoader.classList.remove('hidden');
                 removeBgOutput.classList.add('hidden');
@@ -584,7 +584,7 @@
                     showMessage('Hubo un error al procesar la imagen. Inténtalo de nuevo.');
                 } finally {
                     removeBgLoader.classList.add('hidden');
-                    removeBgReady.classList.remove('hidden');
+                    removeBgStatus.classList.remove('hidden');
                 }
             });
         });
