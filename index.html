@@ -120,7 +120,7 @@
                         <svg class="w-16 h-16 mb-4 text-purple-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c.251.023.501.05.75.082a.75.75 0 01.75.75v5.714a2.25 2.25 0 00.659 1.591L19.5 14.5M9.75 3.104C11.42 3.104 13.5 4.136 13.5 6c0 1.864-2.08 2.896-3.75 2.896S6 7.864 6 6c0-1.864 2.08-2.896 3.75-2.896zM12 12.75h9.75M12 12.75a2.25 2.25 0 01-2.25-2.25V6.75a2.25 2.25 0 012.25-2.25h.375M12 12.75c0-2.093.134-4.043.372-5.968m-9.444 6.252a2.25 2.25 0 00-2.25 2.25v2.25a2.25 2.25 0 002.25 2.25h15a2.25 2.25 0 002.25-2.25v-2.25a2.25 2.25 0 00-2.25-2.25H2.929z" />
                         </svg>
-                        <h2 class="text-xl font-semibold mb-2">Quitar Fondo de Imagen</h2>
+                        <h2 class="text-xl font-semibold mb-2">Quitar Fondo</h2>
                         <p class="text-gray-500">Sube una imagen y descarga la versión sin fondo.</p>
                     </div>
                 </main>
@@ -226,7 +226,7 @@
                                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                             </svg>
-                            <p class="mt-2 text-gray-600">Eliminando fondo... Esto puede tardar unos segundos.</p>
+                            <p id="remove-bg-loader-text" class="mt-2 text-gray-600"></p>
                         </div>
                         <div id="remove-bg-output" class="hidden mt-6 grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
                             <div>
@@ -253,10 +253,7 @@
         </div>
     </div>
 
-    <script>
-        // Configuración de pdf.js
-        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.worker.min.js`;
-
+    <script type="module">
         // --- NAVEGACIÓN ---
         const welcomeScreen = document.getElementById('welcome-screen');
         const mainContent = document.getElementById('main-content');
@@ -264,19 +261,18 @@
         const toolContainer = document.getElementById('tool-container');
         const toolContents = document.querySelectorAll('.tool-content');
 
-        function enterApp() {
+        window.enterApp = function() {
             welcomeScreen.classList.add('hidden');
             mainContent.classList.remove('hidden');
         }
 
-        function showTool(toolId) {
+        window.showTool = function(toolId) {
             homeScreen.classList.add('hidden');
             toolContainer.classList.remove('hidden');
             toolContents.forEach(tool => {
+                tool.classList.add('hidden');
                 if (tool.id === toolId) {
                     tool.classList.remove('hidden');
-                } else {
-                    tool.classList.add('hidden');
                 }
             });
             if (toolId === 'password-generator') {
@@ -287,7 +283,7 @@
             }
         }
 
-        function showHomeScreen() {
+        window.showHomeScreen = function() {
             homeScreen.classList.remove('hidden');
             toolContainer.classList.add('hidden');
         }
@@ -316,6 +312,7 @@
         const pdfToJpgOutput = document.getElementById('pdf-to-jpg-output');
         const pdfToJpgLoader = document.getElementById('pdf-to-jpg-loader');
         const pdfToJpgFilename = document.getElementById('pdf-to-jpg-filename');
+        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.worker.min.js`;
         
         pdfToJpgInput.addEventListener('change', async (event) => {
             const file = event.target.files[0];
@@ -562,6 +559,7 @@
         // --- HERRAMIENTA 6: QUITAR FONDO DE IMAGEN ---
         const removeBgInput = document.getElementById('remove-bg-input');
         const removeBgLoader = document.getElementById('remove-bg-loader');
+        const removeBgLoaderText = document.getElementById('remove-bg-loader-text');
         const removeBgOutput = document.getElementById('remove-bg-output');
         const removeBgOriginal = document.getElementById('remove-bg-original');
         const removeBgResult = document.getElementById('remove-bg-result');
@@ -569,36 +567,37 @@
         let removeBgLib = null;
 
         async function loadRemoveBgLibrary() {
-            if (removeBgLib) return; // Ya está cargada
+            if (removeBgLib) return; // Already loaded
+
+            removeBgLoaderText.textContent = "Cargando herramienta, por favor espera...";
             removeBgLoader.classList.remove('hidden');
+            
             try {
-                const script = document.createElement('script');
-                script.src = 'https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.0.0/dist/bundle.min.js';
-                script.type = 'module';
-                document.head.appendChild(script);
-                script.onload = async () => {
-                    const module = await import('https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.0.0/dist/bundle.min.js');
-                    removeBgLib = module;
-                    console.log('Librería para quitar fondo cargada.');
-                    removeBgLoader.classList.add('hidden');
-                };
+                // Dynamic import
+                const module = await import('https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.0.0/dist/bundle.min.js');
+                removeBgLib = module;
+                console.log('Librería para quitar fondo cargada.');
             } catch(err) {
                 console.error("Error al cargar la librería para quitar fondo:", err);
                 showMessage("No se pudo cargar la herramienta para quitar fondo. Revisa tu conexión a internet.");
+            } finally {
                 removeBgLoader.classList.add('hidden');
             }
         }
 
         removeBgInput.addEventListener('change', async (event) => {
             const file = event.target.files[0];
-            if (!file || !removeBgLib) {
-                if (!removeBgLib) showMessage('La librería para quitar fondo aún se está cargando, por favor espera un momento.');
+            if (!file) return;
+
+            if (!removeBgLib) {
+                showMessage('La herramienta no ha terminado de cargar. Por favor, espera un momento y vuelve a intentarlo.');
                 return;
             };
 
             const originalUrl = URL.createObjectURL(file);
             removeBgOriginal.src = originalUrl;
             
+            removeBgLoaderText.textContent = "Eliminando fondo... Esto puede tardar unos segundos.";
             removeBgLoader.classList.remove('hidden');
             removeBgOutput.classList.add('hidden');
             removeBgDownload.classList.add('hidden');
@@ -619,8 +618,7 @@
                 removeBgLoader.classList.add('hidden');
             }
         });
-
     </script>
 </body>
 </html>
-
+```eof
