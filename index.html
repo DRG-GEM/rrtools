@@ -11,8 +11,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.min.js"></script>
     <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
-    <!-- CDN para la herramienta de quitar fondo -->
-    <script type="module" src="https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.0.0/dist/bundle.min.js"></script>
+    <!-- CDN para la herramienta de quitar fondo (carga estándar para mayor compatibilidad) -->
+    <script src="https://cdn.jsdelivr.net/npm/@imgly/background-removal@latest/dist/browser.js"></script>
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -228,7 +228,7 @@
                                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                             </svg>
-                            <p id="remove-bg-loader-text" class="mt-2 text-gray-600"></p>
+                            <p id="remove-bg-loader-text" class="mt-2 text-gray-600">Eliminando fondo... Esto puede tardar unos segundos.</p>
                         </div>
                         <div id="remove-bg-output" class="hidden mt-6 grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
                             <div>
@@ -256,67 +256,58 @@
     </div>
 
     <script>
-        // Declarar removeBackground globalmente para que las funciones puedan acceder a él
-        let removeBackground;
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- NAVEGACIÓN ---
+            const welcomeScreen = document.getElementById('welcome-screen');
+            const mainContent = document.getElementById('main-content');
+            const homeScreen = document.getElementById('home-screen');
+            const toolContainer = document.getElementById('tool-container');
+            const toolContents = document.querySelectorAll('.tool-content');
 
-        // --- NAVEGACIÓN ---
-        const welcomeScreen = document.getElementById('welcome-screen');
-        const mainContent = document.getElementById('main-content');
-        const homeScreen = document.getElementById('home-screen');
-        const toolContainer = document.getElementById('tool-container');
-        const toolContents = document.querySelectorAll('.tool-content');
+            window.enterApp = function() {
+                welcomeScreen.classList.add('hidden');
+                mainContent.classList.remove('hidden');
+            }
 
-        window.enterApp = function() {
-            welcomeScreen.classList.add('hidden');
-            mainContent.classList.remove('hidden');
-        }
-
-        window.showTool = function(toolId) {
-            homeScreen.classList.add('hidden');
-            toolContainer.classList.remove('hidden');
-            toolContents.forEach(tool => {
-                tool.classList.add('hidden');
-                if (tool.id === toolId) {
-                    tool.classList.remove('hidden');
+            window.showTool = function(toolId) {
+                homeScreen.classList.add('hidden');
+                toolContainer.classList.remove('hidden');
+                toolContents.forEach(tool => {
+                    tool.classList.add('hidden');
+                    if (tool.id === toolId) {
+                        tool.classList.remove('hidden');
+                    }
+                });
+                if (toolId === 'password-generator') {
+                    generatePassword();
                 }
-            });
-            if (toolId === 'password-generator') {
-                generatePassword();
             }
-             if (toolId === 'remove-bg' && !removeBackground) {
-                 loadRemoveBgLibrary();
+
+            window.showHomeScreen = function() {
+                homeScreen.classList.remove('hidden');
+                toolContainer.classList.add('hidden');
             }
-        }
 
-        window.showHomeScreen = function() {
-            homeScreen.classList.remove('hidden');
-            toolContainer.classList.add('hidden');
-        }
+            // --- MODAL DE MENSAJES ---
+            const modal = document.getElementById('message-modal');
+            const modalMessage = document.getElementById('modal-message');
+            const modalCloseButton = document.getElementById('modal-close-button');
 
-        // --- MODAL DE MENSAJES ---
-        const modal = document.getElementById('message-modal');
-        const modalMessage = document.getElementById('modal-message');
-        const modalCloseButton = document.getElementById('modal-close-button');
+            function showMessage(message) {
+                modalMessage.textContent = message;
+                modal.style.display = "flex";
+            }
 
-        function showMessage(message) {
-            modalMessage.textContent = message;
-            modal.style.display = "flex";
-        }
-
-        modalCloseButton.onclick = function() {
-            modal.style.display = "none";
-        }
-        window.onclick = function(event) {
-            if (event.target == modal) {
+            modalCloseButton.onclick = function() {
                 modal.style.display = "none";
             }
-        }
-        
-        // --- LIBRERÍAS Y HERRAMIENTAS ---
-
-        document.addEventListener('DOMContentLoaded', () => {
-
-            // Configuración de pdf.js
+            window.onclick = function(event) {
+                if (event.target == modal) {
+                    modal.style.display = "none";
+                }
+            }
+            
+            // --- LIBRERÍAS Y HERRAMIENTAS ---
             pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.worker.min.js`;
             const { PDFDocument } = PDFLib;
 
@@ -535,7 +526,6 @@
             
             generatePassword();
 
-
             // --- HERRAMIENTA 5: GENERADOR DE QR ---
             const qrInput = document.getElementById('qr-input');
             const generateQrButton = document.getElementById('generate-qr-button');
@@ -576,32 +566,15 @@
             const removeBgResult = document.getElementById('remove-bg-result');
             const removeBgDownload = document.getElementById('remove-bg-download');
 
-            async function loadRemoveBgLibrary() {
-                if (removeBackground) return;
-
-                removeBgLoaderText.textContent = "Cargando herramienta, por favor espera...";
-                removeBgLoader.classList.remove('hidden');
-                
-                try {
-                    const module = await import('https://cdn.jsdelivr.net/npm/@imgly/background-removal/dist/web/index.js');
-                    removeBackground = module.removeBackground;
-                    console.log('Librería para quitar fondo cargada.');
-                } catch(err) {
-                    console.error("Error al cargar la librería para quitar fondo:", err);
-                    showMessage("No se pudo cargar la herramienta para quitar fondo. Revisa tu conexión a internet.");
-                } finally {
-                    removeBgLoader.classList.add('hidden');
-                }
-            }
-
             removeBgInput.addEventListener('change', async (event) => {
                 const file = event.target.files[0];
                 if (!file) return;
 
-                if (!removeBackground) {
-                    showMessage('La herramienta no ha terminado de cargar. Por favor, espera un momento y vuelve a intentarlo.');
+                // La librería `bgRemoval` se carga en el <head> y está disponible globalmente.
+                if (typeof bgRemoval === 'undefined') {
+                    showMessage('La herramienta para quitar fondo no está disponible. Revisa tu conexión a internet y recarga la página.');
                     return;
-                };
+                }
 
                 const originalUrl = URL.createObjectURL(file);
                 removeBgOriginal.src = originalUrl;
@@ -612,7 +585,7 @@
                 removeBgDownload.classList.add('hidden');
 
                 try {
-                    const blob = await removeBackground(file);
+                    const blob = await bgRemoval.removeBackground(file);
                     const resultUrl = URL.createObjectURL(blob);
                     removeBgResult.src = resultUrl;
                     removeBgDownload.href = resultUrl;
