@@ -543,51 +543,102 @@
             });
             
             // --- HERRAMIENTA 6: QUITAR FONDO DE IMAGEN ---
-            const removeBgInput = document.getElementById('remove-bg-input');
-            const removeBgLoader = document.getElementById('remove-bg-loader');
-            const removeBgLoaderText = document.getElementById('remove-bg-loader-text');
-            const removeBgOutput = document.getElementById('remove-bg-output');
-            const removeBgOriginal = document.getElementById('remove-bg-original');
-            const removeBgResult = document.getElementById('remove-bg-result');
-            const removeBgDownload = document.getElementById('remove-bg-download');
-            const removeBgStatus = document.getElementById('remove-bg-status');
+            <!-- 🔹 Quitar fondo de imagen (versión sin conexión, estilo original) -->
+<section id="remove-bg" class="tool-section">
+  <h2>🧰 Quitar fondo de imagen</h2>
+  <p>Selecciona una imagen y elimina su fondo automáticamente. No necesita conexión.</p>
+  
+  <div class="tool-content">
+    <input type="file" id="inputImage" accept="image/*" class="file-input">
+    <button id="removeBgButton" class="tool-button">Quitar fondo</button>
+    <button id="downloadButton" class="tool-button" style="display:none;">Descargar PNG</button>
+  </div>
+  
+  <div class="image-preview" style="margin-top:1em;">
+    <canvas id="outputCanvas" style="max-width:100%; border-radius:10px; box-shadow:0 0 10px rgba(0,0,0,0.1);"></canvas>
+  </div>
 
-            removeBgInput.addEventListener('change', async (event) => {
-                const file = event.target.files[0];
-                if (!file) return;
+  <p id="statusMessage" style="margin-top:1em; color: var(--text-secondary);"></p>
+</section>
 
-                if (typeof bgRemoval === 'undefined' || typeof bgRemoval.removeBackground !== 'function') {
-                    showMessage('La herramienta para quitar fondo no está disponible. Revisa tu conexión a internet y recarga la página.');
-                    return;
-                }
-                
-                removeBgStatus.classList.add('hidden');
-                removeBgLoaderText.textContent = "Eliminando fondo... Esto puede tardar unos segundos.";
-                removeBgLoader.classList.remove('hidden');
-                removeBgOutput.classList.add('hidden');
-                removeBgDownload.classList.add('hidden');
-                
-                const originalUrl = URL.createObjectURL(file);
-                removeBgOriginal.src = originalUrl;
+<!-- Librerías TensorFlow.js y BodyPix -->
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.16.0"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/body-pix@2.2.0"></script>
 
-                try {
-                    const blob = await bgRemoval.removeBackground(file);
-                    const resultUrl = URL.createObjectURL(blob);
-                    removeBgResult.src = resultUrl;
-                    removeBgDownload.href = resultUrl;
-                    removeBgDownload.download = `${file.name.replace(/\.[^/.]+$/, "")}_sin_fondo.png`;
+<script>
+  const input = document.getElementById('inputImage');
+  const canvas = document.getElementById('outputCanvas');
+  const ctx = canvas.getContext('2d');
+  const removeButton = document.getElementById('removeBgButton');
+  const downloadButton = document.getElementById('downloadButton');
+  const statusMessage = document.getElementById('statusMessage');
+  
+  let selectedImage = null;
+  let net = null;
 
-                    removeBgOutput.classList.remove('hidden');
-                    removeBgDownload.classList.remove('hidden');
-                } catch (error) {
-                    console.error('Error al quitar el fondo:', error);
-                    showMessage('Hubo un error al procesar la imagen. Inténtalo de nuevo.');
-                } finally {
-                    removeBgLoader.classList.add('hidden');
-                    removeBgStatus.classList.remove('hidden');
-                }
-            });
-        });
+  // Carga el modelo BodyPix
+  async function loadModel() {
+    statusMessage.textContent = "Cargando modelo... (puede tardar unos segundos)";
+    net = await bodyPix.load({
+      architecture: 'MobileNetV1',
+      outputStride: 16,
+      multiplier: 0.75,
+      quantBytes: 2
+    });
+    statusMessage.textContent = "✅ Modelo cargado. Puedes quitar el fondo.";
+  }
+
+  loadModel();
+
+  input.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const img = new Image();
+    img.src = URL.createObjectURL(file);
+    img.onload = () => {
+      selectedImage = img;
+      canvas.width = img.width;
+      canvas.height = img.height;
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      statusMessage.textContent = "Imagen lista. Pulsa 'Quitar fondo'.";
+      downloadButton.style.display = "none";
+    };
+  });
+
+  removeButton.addEventListener('click', async () => {
+    if (!selectedImage || !net) {
+      statusMessage.textContent = "⚠️ Carga primero una imagen y espera a que se inicie el modelo.";
+      return;
+    }
+    statusMessage.textContent = "Procesando...";
+
+    const segmentation = await net.segmentPerson(selectedImage, {
+      internalResolution: 'medium',
+      segmentationThreshold: 0.7
+    });
+
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const pixelData = imageData.data;
+
+    for (let i = 0; i < pixelData.length; i += 4) {
+      const isPerson = segmentation.data[i / 4];
+      if (!isPerson) pixelData[i + 3] = 0; // Fondo transparente
+    }
+
+    ctx.putImageData(imageData, 0, 0);
+    statusMessage.textContent = "🎨 Fondo eliminado. Puedes descargar el resultado.";
+    downloadButton.style.display = "inline-block";
+  });
+
+  // Botón de descarga del resultado
+  downloadButton.addEventListener('click', () => {
+    const link = document.createElement('a');
+    link.download = 'imagen_sin_fondo.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  });
+</script>
+
     </script>
 </body>
 </html>
