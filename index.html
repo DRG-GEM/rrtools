@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale-1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RR Tools</title>
     <!-- Favicon desde GitHub -->
     <link rel="icon" type="image/png" href="https://github.com/DRG-GEM/rrtools/blob/main/rrtools.png?raw=true">
@@ -1099,6 +1099,7 @@
             let lastY = 0;
             let signatureDataUrl = null;
             let originalPdfBytes = null;
+            let signOriginalPdfName = '';
 
             function resetSignPdfTool() {
                 signPdfInput.value = '';
@@ -1107,6 +1108,7 @@
                 signatureCtx.clearRect(0, 0, signatureCanvas.width, signatureCanvas.height);
                 signatureDataUrl = null;
                 originalPdfBytes = null;
+                signOriginalPdfName = '';
                 signStep1.classList.remove('hidden');
                 signStep2.classList.add('hidden');
                 signStep3.classList.add('hidden');
@@ -1218,6 +1220,7 @@
                 if (!file) return;
                 
                 resetSignPdfTool();
+                signOriginalPdfName = file.name;
                 signPdfFilename.textContent = `Archivo: ${file.name}`;
 
                 try {
@@ -1278,7 +1281,7 @@
                     const blob = new Blob([pdfBytes], { type: 'application/pdf' });
                     const link = document.createElement('a');
                     link.href = URL.createObjectURL(blob);
-                    link.download = `${signPdfInput.files[0].name.replace(/\.[^/.]+$/, "")}_firmado.pdf`;
+                    link.download = `${signOriginalPdfName.replace(/\.[^/.]+$/, "")}_firmado.pdf`;
                     document.body.appendChild(link);
                     link.click();
                     document.body.removeChild(link);
