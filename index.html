@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale-1.0">
     <title>RR Tools</title>
     <!-- Favicon desde GitHub -->
     <link rel="icon" type="image/png" href="https://github.com/DRG-GEM/rrtools/blob/main/rrtools.png?raw=true">
@@ -376,7 +376,7 @@
                             <canvas id="signature-canvas" width="400" height="200" class="bg-white mx-auto"></canvas>
                             <div class="mt-4 flex justify-center space-x-4">
                                 <button id="clear-signature-button" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg">Limpiar</button>
-                                <button id="save-signature-button" class="bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-2 px-4 rounded-lg">Guardar Firma</button>
+                                <button id="save-signature-button" class="bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-2 px-4 rounded-lg">Guardar Firma y ver PDF</button>
                             </div>
                         </div>
 
@@ -388,7 +388,7 @@
                                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                 </svg>
-                                <p class="mt-2 text-gray-600">Procesando...</p>
+                                <p id="sign-pdf-loader-text" class="mt-2 text-gray-600">Procesando...</p>
                             </div>
                             <div id="pdf-pages-container" class="bg-gray-200 p-4 rounded-lg overflow-auto max-h-[60vh]"></div>
                         </div>
@@ -439,6 +439,8 @@
             window.showHomeScreen = function() {
                 homeScreen.classList.remove('hidden');
                 toolContainer.classList.add('hidden');
+                 // Reset sign tool on exit
+                resetSignPdfTool();
             }
 
             // --- MODAL DE MENSAJES ---
@@ -791,7 +793,7 @@
                 const imageURL = URL.createObjectURL(originalImageFile);
                 image.src = imageURL;
                 await new Promise(resolve => image.onload = resolve);
-                URL.revokeObjectURL(imageURL); // Libera memoria
+                URL.revokeObjectURL(imageURL); 
 
                 const canvas = document.createElement('canvas');
                 canvas.width = image.width;
@@ -920,7 +922,7 @@
                     trimmedWavBlob = bufferToWave(newBuffer);
                     trimmedAudioPlayer.src = URL.createObjectURL(trimmedWavBlob);
                     
-                    trimmedMp3Blob = null; // Reset mp3 blob
+                    trimmedMp3Blob = null; 
                     encodeToMp3(newBuffer).then(mp3Blob => {
                         trimmedMp3Blob = mp3Blob;
                          console.log("MP3 encoding complete");
@@ -1023,13 +1025,14 @@
                         const kbps = 128;
                         const mp3encoder = new lamejs.Mp3Encoder(channels, sampleRate, kbps);
                         
+                        const samplesLeft = audioBuffer.getChannelData(0);
+                        const samplesRight = channels > 1 ? audioBuffer.getChannelData(1) : samplesLeft;
                         const samples = new Int16Array(audioBuffer.length * channels);
-                        let offset = 0;
-                        for(let i = 0; i < audioBuffer.length; i++){
-                            for(let ch = 0; ch < channels; ch++){
-                                let sample = audioBuffer.getChannelData(ch)[i];
-                                sample = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
-                                samples[offset++] = sample;
+
+                        for (let i = 0; i < audioBuffer.length; i++) {
+                            samples[i * channels] = samplesLeft[i] * 32767.5 - 0.5;
+                            if (channels > 1) {
+                                samples[i * channels + 1] = samplesRight[i] * 32767.5 - 0.5;
                             }
                         }
 
@@ -1037,8 +1040,26 @@
                         const sampleBlockSize = 1152;
                         
                         for (let i = 0; i < samples.length; i += sampleBlockSize * channels) {
-                            const sampleChunk = samples.subarray(i, i + sampleBlockSize * channels);
-                            const mp3buf = mp3encoder.encodeBuffer(sampleChunk);
+                             const leftChunk = (channels === 1) ? samples.subarray(i, i + sampleBlockSize) : null;
+                             const rightChunk = (channels === 1) ? null : samples.subarray(i + sampleBlockSize, i + (sampleBlockSize*2));
+                             const stereoChunk = (channels > 1) ? samples.subarray(i, i + sampleBlockSize*channels) : null;
+
+                             let pcm;
+                             if(channels === 1){
+                                 pcm = new Int16Array(sampleBlockSize);
+                                 for(let j=0; j<sampleBlockSize; j++){
+                                     pcm[j] = samples[i+j];
+                                 }
+                             } else {
+                                pcm = new Int16Array(sampleBlockSize * 2);
+                                for(let j=0; j<sampleBlockSize; j++){
+                                    pcm[j*2] = samples[i + (j*2)];
+                                    pcm[j*2+1] = samples[i + (j*2) +1];
+                                }
+                             }
+                            
+                            const mp3buf = mp3encoder.encodeBuffer(pcm);
+
                             if (mp3buf.length > 0) {
                                 mp3Data.push(mp3buf);
                             }
@@ -1065,6 +1086,7 @@
             const signStep3 = document.getElementById('sign-step-3');
             const signPdfFilename = document.getElementById('sign-pdf-filename');
             const signPdfLoader = document.getElementById('sign-pdf-loader');
+            const signPdfLoaderText = document.getElementById('sign-pdf-loader-text');
             const pdfPagesContainer = document.getElementById('pdf-pages-container');
 
             const signatureCanvas = document.getElementById('signature-canvas');
@@ -1078,6 +1100,18 @@
             let signatureDataUrl = null;
             let originalPdfBytes = null;
 
+            function resetSignPdfTool() {
+                signPdfInput.value = '';
+                signPdfFilename.textContent = '';
+                pdfPagesContainer.innerHTML = '';
+                signatureCtx.clearRect(0, 0, signatureCanvas.width, signatureCanvas.height);
+                signatureDataUrl = null;
+                originalPdfBytes = null;
+                signStep1.classList.remove('hidden');
+                signStep2.classList.add('hidden');
+                signStep3.classList.add('hidden');
+            }
+            
             function getMousePos(canvas, evt) {
                 const rect = canvas.getBoundingClientRect();
                 return {
@@ -1126,60 +1160,78 @@
             });
             signatureCanvas.addEventListener('touchend', () => isDrawing = false);
 
-
             clearSignatureButton.addEventListener('click', () => {
                 signatureCtx.clearRect(0, 0, signatureCanvas.width, signatureCanvas.height);
             });
 
-            saveSignatureButton.addEventListener('click', () => {
+            async function renderPdfPagesForSigning() {
+                if (!originalPdfBytes) return;
+
+                pdfPagesContainer.innerHTML = '';
+                signPdfLoaderText.textContent = 'Cargando previsualización del PDF...';
+                signPdfLoader.classList.remove('hidden');
+
+                try {
+                    const typedarray = new Uint8Array(originalPdfBytes);
+                    const pdf = await pdfjsLib.getDocument(typedarray).promise;
+
+                    for (let i = 1; i <= pdf.numPages; i++) {
+                        const page = await pdf.getPage(i);
+                        const viewport = page.getViewport({ scale: 1 });
+                        const canvas = document.createElement('canvas');
+                        canvas.className = 'pdf-page-canvas shadow-lg';
+                        const context = canvas.getContext('2d');
+                        
+                        const containerWidth = pdfPagesContainer.clientWidth || 800;
+                        const scale = (containerWidth - 32) / viewport.width; 
+                        const scaledViewport = page.getViewport({ scale: scale });
+                        
+                        canvas.height = scaledViewport.height;
+                        canvas.width = scaledViewport.width;
+                        canvas.dataset.pageNumber = i;
+
+                        await page.render({ canvasContext: context, viewport: scaledViewport }).promise;
+                        pdfPagesContainer.appendChild(canvas);
+                    }
+                } catch(e) {
+                    showMessage("Error al renderizar el PDF.");
+                    console.error(e);
+                } finally {
+                    signPdfLoader.classList.add('hidden');
+                }
+            }
+            
+            saveSignatureButton.addEventListener('click', async () => {
+                const isEmpty = !signatureCtx.getImageData(0,0,signatureCanvas.width, signatureCanvas.height).data.some(channel => channel !== 0);
+                if (isEmpty) {
+                    showMessage("Por favor, dibuja una firma antes de guardar.");
+                    return;
+                }
                 signatureDataUrl = signatureCanvas.toDataURL('image/png');
                 signStep2.classList.add('hidden');
                 signStep3.classList.remove('hidden');
+                await renderPdfPagesForSigning();
             });
             
             signPdfInput.addEventListener('change', async (event) => {
                 const file = event.target.files[0];
                 if (!file) return;
-
+                
+                resetSignPdfTool();
                 signPdfFilename.textContent = `Archivo: ${file.name}`;
-                signStep2.classList.remove('hidden');
-                signStep3.classList.add('hidden'); // Ocultar por si se sube un nuevo PDF
-                pdfPagesContainer.innerHTML = '';
-                signatureCtx.clearRect(0, 0, signatureCanvas.width, signatureCanvas.height);
-                signatureDataUrl = null;
 
                 try {
                     const fileReader = new FileReader();
                     fileReader.readAsArrayBuffer(file);
-                    fileReader.onload = async (e) => {
+                    fileReader.onload = (e) => {
                         originalPdfBytes = e.target.result;
-                        const typedarray = new Uint8Array(originalPdfBytes);
-                        const pdf = await pdfjsLib.getDocument(typedarray).promise;
-
-                        for (let i = 1; i <= pdf.numPages; i++) {
-                            const page = await pdf.getPage(i);
-                            const viewport = page.getViewport({ scale: 1 });
-                            const canvas = document.createElement('canvas');
-                            canvas.className = 'pdf-page-canvas shadow-lg';
-                            const context = canvas.getContext('2d');
-                            
-                            const containerWidth = pdfPagesContainer.clientWidth;
-                            const scale = containerWidth / viewport.width;
-                            const scaledViewport = page.getViewport({ scale: scale });
-                            
-                            canvas.height = scaledViewport.height;
-                            canvas.width = scaledViewport.width;
-                            canvas.dataset.pageNumber = i;
-                            canvas.dataset.originalWidth = viewport.width;
-                            canvas.dataset.originalHeight = viewport.height;
-
-                            await page.render({ canvasContext: context, viewport: scaledViewport }).promise;
-                            pdfPagesContainer.appendChild(canvas);
-                        }
+                        signStep1.classList.add('hidden');
+                        signStep2.classList.remove('hidden');
                     };
                 } catch(e) {
-                    showMessage("Error al cargar el PDF.");
+                    showMessage("Error al cargar el archivo PDF.");
                     console.error(e);
+                    resetSignPdfTool();
                 }
             });
 
@@ -1190,6 +1242,7 @@
                     return;
                 }
 
+                signPdfLoaderText.textContent = 'Aplicando firma y generando PDF...';
                 signPdfLoader.classList.remove('hidden');
 
                 const canvas = e.target;
@@ -1202,21 +1255,21 @@
                 try {
                     const pdfDoc = await PDFDocument.load(originalPdfBytes);
                     const pages = pdfDoc.getPages();
+                    if(pageNum >= pages.length) throw new Error("Número de página inválido.");
+
                     const targetPage = pages[pageNum];
                     
                     const signatureImage = await pdfDoc.embedPng(signatureDataUrl);
                     
                     const { width: pageWidth, height: pageHeight } = targetPage.getSize();
                     const scaleX = pageWidth / canvas.width;
-                    const scaleY = pageHeight / canvas.height;
                     
-                    // Ajustar el tamaño de la firma (ej: 100px de ancho)
-                    const sigWidth = 100;
+                    const sigWidth = 120; // Ancho de la firma en el PDF
                     const sigHeight = (sigWidth / signatureImage.width) * signatureImage.height;
 
                     targetPage.drawImage(signatureImage, {
-                        x: clickX * scaleX - (sigWidth/2), // Centrar la firma en el clic
-                        y: pageHeight - (clickY * scaleY) - (sigHeight/2),
+                        x: (clickX * scaleX) - (sigWidth / 2),
+                        y: pageHeight - (clickY * scaleX) - (sigHeight / 2),
                         width: sigWidth,
                         height: sigHeight,
                     });
@@ -1226,8 +1279,12 @@
                     const link = document.createElement('a');
                     link.href = URL.createObjectURL(blob);
                     link.download = `${signPdfInput.files[0].name.replace(/\.[^/.]+$/, "")}_firmado.pdf`;
+                    document.body.appendChild(link);
                     link.click();
+                    document.body.removeChild(link);
                     URL.revokeObjectURL(link.href);
+                    
+                    showMessage("¡PDF firmado y descargado con éxito!");
 
                 } catch (err) {
                     console.error("Error al firmar el PDF:", err);
@@ -1236,7 +1293,6 @@
                     signPdfLoader.classList.add('hidden');
                 }
             });
-
         });
     </script>
 </body>
