@@ -13,6 +13,8 @@
     <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
     <!-- CDN para la herramienta de quitar fondo -->
     <script src="https://cdn.jsdelivr.net/npm/@imgly/background-removal@latest/dist/browser.js" defer></script>
+    <!-- CDN para codificar MP3 -->
+    <script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js"></script>
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -115,6 +117,15 @@
                         </svg>
                         <h2 class="text-xl font-semibold mb-2">Comprimir Imagen</h2>
                         <p class="text-gray-500">Reduce el tamaño de tus imágenes JPG y PNG.</p>
+                    </div>
+                    <!-- Recortar Audio -->
+                     <div onclick="showTool('trim-audio')" class="tool-card bg-white p-6 rounded-lg shadow-md cursor-pointer flex flex-col items-center text-center">
+                        <svg class="w-16 h-16 mb-4 text-orange-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9.53 16.122a3 3 0 00-5.78 1.128 2.25 2.25 0 01-2.43 2.43a4.5 4.5 0 008.636-2.122L9.53 16.122zm10.47-4.242a3 3 0 00-5.78-1.128 2.25 2.25 0 01-2.43-2.43a4.5 4.5 0 008.636 2.122L19.53 11.88z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 18.75h.008v.008H12v-.008zm-2.25-2.25h.008v.008h-.008v-.008zm-2.25 2.25h.008v.008h-.008V18.75zm-2.25-2.25h.008v.008h-.008v-.008zm-2.25 2.25h.008v.008H7.5v-.008zm-2.25-2.25h.008v.008H5.25v-.008zM12 5.25h.008v.008H12V5.25zm2.25 2.25h.008v.008h-.008V7.5zm2.25 2.25h.008v.008h-.008V9.75zm2.25 2.25h.008v.008h-.008V12zm2.25 2.25h.008v.008h-.008v-.008z" />
+                        </svg>
+                        <h2 class="text-xl font-semibold mb-2">Recortar Audio</h2>
+                        <p class="text-gray-500">Corta un fragmento de un archivo de audio.</p>
                     </div>
                 </main>
             </div>
@@ -270,6 +281,59 @@
                                 </div>
                             </div>
                             <a id="compress-download-link" class="hidden mt-6 w-full sm:w-auto inline-block bg-teal-500 hover:bg-teal-600 text-white font-bold py-3 px-6 rounded-lg">Descargar Imagen Comprimida</a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Herramienta: Recortar Audio -->
+                <div id="trim-audio" class="tool-content hidden bg-white p-8 rounded-lg shadow-lg">
+                    <h2 class="text-3xl font-bold mb-6 text-center">Recortar Audio</h2>
+                    <div class="max-w-lg mx-auto text-center">
+                        <label class="w-full inline-block cursor-pointer rounded-lg bg-orange-500 px-4 py-3 text-center font-bold text-white hover:bg-orange-600">
+                            <span>Seleccionar Archivo de Audio</span>
+                            <input type="file" id="trim-audio-input" accept="audio/*" class="hidden"/>
+                        </label>
+                        <div id="trim-audio-loader" class="hidden my-4 text-center">
+                             <svg class="animate-spin h-8 w-8 text-orange-600 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <p id="trim-audio-loader-text" class="mt-2 text-gray-600">Procesando...</p>
+                        </div>
+                        <div id="trim-audio-controls" class="hidden mt-6 space-y-4">
+                            <p class="text-sm text-gray-600">Audio Original:</p>
+                            <audio id="audio-player" controls class="w-full"></audio>
+                            <div class="grid grid-cols-2 gap-4 text-left">
+                                <div>
+                                    <label for="start-time" class="block text-sm font-medium text-gray-700">Inicio (segundos)</label>
+                                    <input type="number" id="start-time" value="0" min="0" step="0.1" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2">
+                                </div>
+                                <div>
+                                    <label for="end-time" class="block text-sm font-medium text-gray-700">Fin (segundos)</label>
+                                    <input type="number" id="end-time" value="10" min="0" step="0.1" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2">
+                                </div>
+                            </div>
+                            <button id="trim-audio-button" class="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-4 rounded-lg">Recortar Audio</button>
+                             <div id="trim-audio-output" class="hidden mt-6 space-y-4">
+                                <p class="text-sm text-gray-600">Resultado:</p>
+                                <audio id="trimmed-audio-player" controls class="w-full"></audio>
+                                
+                                <div class="flex items-center justify-center space-x-4 mt-4">
+                                    <label class="text-sm font-medium text-gray-700">Formato:</label>
+                                    <div class="flex items-center space-x-4">
+                                        <label for="format-wav" class="flex items-center">
+                                            <input type="radio" id="format-wav" name="audio-format" value="wav" checked class="h-4 w-4 text-orange-600 border-gray-300 focus:ring-orange-500">
+                                            <span class="ml-2 text-sm text-gray-900">WAV</span>
+                                        </label>
+                                        <label for="format-mp3" class="flex items-center">
+                                            <input type="radio" id="format-mp3" name="audio-format" value="mp3" class="h-4 w-4 text-orange-600 border-gray-300 focus:ring-orange-500">
+                                            <span class="ml-2 text-sm text-gray-900">MP3</span>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <a id="download-trimmed-audio" class="w-full sm:w-auto inline-block bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg cursor-pointer">Descargar Audio Recortado</a>
+                             </div>
                         </div>
                     </div>
                 </div>
@@ -666,8 +730,10 @@
                 compressQualityValue.textContent = compressQualitySlider.value;
                 
                 const image = new Image();
-                image.src = URL.createObjectURL(originalImageFile);
-                await image.decode(); // Espera a que la imagen se cargue completamente
+                const imageURL = URL.createObjectURL(originalImageFile);
+                image.src = imageURL;
+                await image.decode();
+                URL.revokeObjectURL(imageURL); // Libera memoria
 
                 const canvas = document.createElement('canvas');
                 canvas.width = image.width;
@@ -701,10 +767,224 @@
                 compressOriginalSize.textContent = `Tamaño: ${formatBytes(file.size)}`;
                 compressOutput.classList.remove('hidden');
                 
-                compressAndDisplayImage();
+                await compressAndDisplayImage();
             });
 
             compressQualitySlider.addEventListener('input', compressAndDisplayImage);
+
+            // --- HERRAMIENTA 8: RECORTAR AUDIO ---
+            const trimAudioInput = document.getElementById('trim-audio-input');
+            const trimAudioLoader = document.getElementById('trim-audio-loader');
+            const trimAudioLoaderText = document.getElementById('trim-audio-loader-text');
+            const trimAudioControls = document.getElementById('trim-audio-controls');
+            const audioPlayer = document.getElementById('audio-player');
+            const startTimeInput = document.getElementById('start-time');
+            const endTimeInput = document.getElementById('end-time');
+            const trimAudioButton = document.getElementById('trim-audio-button');
+            const trimAudioOutput = document.getElementById('trim-audio-output');
+            const trimmedAudioPlayer = document.getElementById('trimmed-audio-player');
+            const downloadTrimmedAudio = document.getElementById('download-trimmed-audio');
+
+            let audioFileBuffer = null;
+            let originalAudioFileName = '';
+            let trimmedWavBlob = null;
+            let trimmedMp3Blob = null;
+            
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+            trimAudioInput.addEventListener('change', async (event) => {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                originalAudioFileName = file.name;
+                trimAudioLoaderText.textContent = "Procesando archivo...";
+                trimAudioLoader.classList.remove('hidden');
+                trimAudioControls.classList.add('hidden');
+                trimAudioOutput.classList.add('hidden');
+                
+                trimmedWavBlob = null;
+                trimmedMp3Blob = null;
+
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    try {
+                        audioFileBuffer = await audioContext.decodeAudioData(e.target.result);
+                        audioPlayer.src = URL.createObjectURL(file);
+                        startTimeInput.value = 0;
+                        endTimeInput.value = audioFileBuffer.duration.toFixed(2);
+                        startTimeInput.max = audioFileBuffer.duration.toFixed(2);
+                        endTimeInput.max = audioFileBuffer.duration.toFixed(2);
+                        trimAudioControls.classList.remove('hidden');
+                    } catch (err) {
+                        console.error("Error decodificando el audio:", err);
+                        showMessage("No se pudo procesar el archivo. Asegúrate de que es un formato de audio válido.");
+                    } finally {
+                        trimAudioLoader.classList.add('hidden');
+                    }
+                };
+                reader.readAsArrayBuffer(file);
+            });
+
+            trimAudioButton.addEventListener('click', async () => {
+                if (!audioFileBuffer) {
+                    showMessage("Por favor, sube un archivo de audio primero.");
+                    return;
+                }
+
+                const startTime = parseFloat(startTimeInput.value);
+                const endTime = parseFloat(endTimeInput.value);
+                
+                if (isNaN(startTime) || isNaN(endTime) || startTime < 0 || endTime <= startTime || endTime > audioFileBuffer.duration) {
+                    showMessage("Tiempos de inicio/fin no válidos.");
+                    return;
+                }
+
+                trimAudioLoaderText.textContent = "Recortando audio...";
+                trimAudioLoader.classList.remove('hidden');
+                trimAudioButton.disabled = true;
+                trimAudioOutput.classList.add('hidden');
+
+                try {
+                    // Recortar el buffer
+                    const startOffset = Math.floor(startTime * audioFileBuffer.sampleRate);
+                    const endOffset = Math.floor(endTime * audioFileBuffer.sampleRate);
+                    const frameCount = endOffset - startOffset;
+
+                    const newBuffer = audioContext.createBuffer(
+                        audioFileBuffer.numberOfChannels,
+                        frameCount,
+                        audioFileBuffer.sampleRate
+                    );
+
+                    for (let i = 0; i < audioFileBuffer.numberOfChannels; i++) {
+                        newBuffer.getChannelData(i).set(audioFileBuffer.getChannelData(i).subarray(startOffset, endOffset));
+                    }
+                    
+                    // Crear Blob WAV para la previsualización
+                    trimmedWavBlob = bufferToWave(newBuffer);
+                    trimmedAudioPlayer.src = URL.createObjectURL(trimmedWavBlob);
+                    
+                    // Generar el MP3 en segundo plano
+                    trimmedMp3Blob = await encodeToMp3(newBuffer);
+
+                    trimAudioOutput.classList.remove('hidden');
+
+                } catch(err) {
+                    console.error("Error al recortar el audio:", err);
+                    showMessage("Ocurrió un error durante el recorte.");
+                } finally {
+                    trimAudioLoader.classList.add('hidden');
+                    trimAudioButton.disabled = false;
+                }
+            });
+
+            downloadTrimmedAudio.addEventListener('click', () => {
+                const format = document.querySelector('input[name="audio-format"]:checked').value;
+                const blob = (format === 'mp3') ? trimmedMp3Blob : trimmedWavBlob;
+                const extension = (format === 'mp3') ? 'mp3' : 'wav';
+
+                if (!blob) {
+                    showMessage("No hay audio recortado para descargar.");
+                    return;
+                }
+
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = `${originalAudioFileName.replace(/\.[^/.]+$/, "")}_recortado.${extension}`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+            });
+
+            // Función para convertir a WAV
+            function bufferToWave(abuffer) {
+                const numOfChan = abuffer.numberOfChannels;
+                const length = abuffer.length * numOfChan * 2 + 44;
+                const buffer = new ArrayBuffer(length);
+                const view = new DataView(buffer);
+                const channels = [];
+                let offset = 0;
+                let pos = 0;
+
+                setUint32(0x46464952); // "RIFF"
+                setUint32(length - 8); 
+                setUint32(0x45564157); // "WAVE"
+                setUint32(0x20746d66); // "fmt "
+                setUint32(16);
+                setUint16(1);
+                setUint16(numOfChan);
+                setUint32(abuffer.sampleRate);
+                setUint32(abuffer.sampleRate * 2 * numOfChan);
+                setUint16(numOfChan * 2);
+                setUint16(16);
+                setUint32(0x61746164); // "data"
+                setUint32(abuffer.length * numOfChan * 2);
+
+                for (let i = 0; i < numOfChan; i++) {
+                    channels.push(abuffer.getChannelData(i));
+                }
+
+                while (pos < abuffer.length) {
+                    for (let i = 0; i < numOfChan; i++) {
+                        let sample = Math.max(-1, Math.min(1, channels[i][pos]));
+                        sample = (0.5 + sample < 0 ? sample * 32768 : sample * 32767) | 0;
+                        view.setInt16(offset, sample, true);
+                        offset += 2;
+                    }
+                    pos++;
+                }
+                return new Blob([view], { type: 'audio/wav' });
+
+                function setUint16(data) {
+                    view.setUint16(offset, data, true);
+                    offset += 2;
+                }
+                function setUint32(data) {
+                    view.setUint32(offset, data, true);
+                    offset += 4;
+                }
+            }
+            
+            // Función para convertir a MP3
+            function encodeToMp3(audioBuffer) {
+                return new Promise((resolve, reject) => {
+                    const channels = audioBuffer.numberOfChannels;
+                    const sampleRate = audioBuffer.sampleRate;
+                    const kbps = 128; // Calidad de MP3
+                    const mp3encoder = new lamejs.Mp3Encoder(channels, sampleRate, kbps);
+                    
+                    const channelData = [];
+                    for(let i=0; i < channels; i++) {
+                        channelData.push(audioBuffer.getChannelData(i));
+                    }
+                    
+                    let mp3Data = [];
+                    const sampleBlockSize = 1152;
+                    
+                    for (let i = 0; i < audioBuffer.length; i += sampleBlockSize) {
+                        const leftChunk = channelData[0].subarray(i, i + sampleBlockSize);
+                        let rightChunk = null;
+                        if (channels > 1) {
+                           rightChunk = channelData[1].subarray(i, i + sampleBlockSize);
+                        }
+                        const mp3buf = mp3encoder.encodeBuffer(leftChunk, rightChunk);
+                        if (mp3buf.length > 0) {
+                            mp3Data.push(new Int8Array(mp3buf));
+                        }
+                    }
+                    
+                    const mp3buf = mp3encoder.flush();
+                    if (mp3buf.length > 0) {
+                        mp3Data.push(new Int8Array(mp3buf));
+                    }
+                    
+                    const blob = new Blob(mp3Data, {type: 'audio/mpeg'});
+                    resolve(blob);
+                });
+            }
 
         });
     </script>
