@@ -11,9 +11,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.min.js"></script>
     <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
-    <!-- Reemplazado: ahora usamos TensorFlow.js + BodyPix en lugar de @imgly/background-removal -->
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.16.0/dist/tf.min.js" defer></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/body-pix@2.2.0/dist/body-pix.min.js" defer></script>
+    <!-- CDN para la herramienta de quitar fondo -->
+    <script src="https://cdn.jsdelivr.net/npm/@imgly/background-removal@latest/dist/browser.js" defer></script>
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -91,7 +90,7 @@
                     </div>
                     <!-- Generador de Contraseñas -->
                     <div onclick="showTool('password-generator')" class="tool-card bg-white p-6 rounded-lg shadow-md cursor-pointer flex flex-col items-center text-center">
-                        <svg class="w-16 h-16 mb-4 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 01-2-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"></path></svg>
+                        <svg class="w-16 h-16 mb-4 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
                         <h2 class="text-xl font-semibold mb-2">Generador de Contraseñas</h2>
                         <p class="text-gray-500">Crea contraseñas robustas y seguras al instante.</p>
                     </div>
@@ -108,6 +107,14 @@
                         </svg>
                         <h2 class="text-xl font-semibold mb-2">Quitar Fondo</h2>
                         <p class="text-gray-500">Sube una imagen y descarga la versión sin fondo.</p>
+                    </div>
+                    <!-- Comprimir Imagen -->
+                    <div onclick="showTool('compress-image')" class="tool-card bg-white p-6 rounded-lg shadow-md cursor-pointer flex flex-col items-center text-center">
+                        <svg class="w-16 h-16 mb-4 text-teal-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M9 9V4.5M9 9H4.5M9 9L3.75 3.75M9 15v4.5M9 15H4.5M9 15l-5.25 5.25M15 9h4.5M15 9V4.5M15 9l5.25-5.25M15 15h4.5M15 15v4.5m0-4.5l5.25 5.25" />
+                        </svg>
+                        <h2 class="text-xl font-semibold mb-2">Comprimir Imagen</h2>
+                        <p class="text-gray-500">Reduce el tamaño de tus imágenes JPG y PNG.</p>
                     </div>
                 </main>
             </div>
@@ -229,6 +236,44 @@
                         <a id="remove-bg-download" class="hidden mt-6 w-full sm:w-auto inline-block bg-purple-500 hover:bg-purple-600 text-white font-bold py-3 px-6 rounded-lg">Descargar Imagen</a>
                     </div>
                 </div>
+                
+                <!-- Herramienta: Comprimir Imagen -->
+                <div id="compress-image" class="tool-content hidden bg-white p-8 rounded-lg shadow-lg">
+                    <h2 class="text-3xl font-bold mb-6 text-center">Comprimir Imagen</h2>
+                    <div class="max-w-xl mx-auto text-center">
+                        <label class="w-full inline-block cursor-pointer rounded-lg bg-teal-500 px-4 py-3 text-center font-bold text-white hover:bg-teal-600">
+                            <span>Seleccionar Imagen (JPG/PNG)</span>
+                            <input type="file" id="compress-image-input" accept="image/jpeg, image/png" class="hidden"/>
+                        </label>
+                         <div id="compress-loader" class="hidden my-4 text-center">
+                            <svg class="animate-spin h-8 w-8 text-teal-600 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <p class="mt-2 text-gray-600">Comprimiendo...</p>
+                        </div>
+                        <div id="compress-output" class="hidden mt-6">
+                            <div class="mb-4">
+                                <label for="compress-quality" class="flex justify-between text-sm font-medium text-gray-700">Calidad: <span id="compress-quality-value">75</span>%</label>
+                                <input type="range" id="compress-quality" min="10" max="95" value="75" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+                                <div>
+                                    <h3 class="font-semibold mb-2">Original</h3>
+                                    <img id="compress-original-img" class="rounded-lg shadow-md mx-auto max-h-64" src="">
+                                    <p id="compress-original-size" class="text-sm mt-2 text-gray-500"></p>
+                                </div>
+                                <div>
+                                    <h3 class="font-semibold mb-2">Comprimida</h3>
+                                    <img id="compress-result-img" class="rounded-lg shadow-md mx-auto max-h-64" src="">
+                                    <p id="compress-result-size" class="text-sm mt-2 text-green-600 font-semibold"></p>
+                                </div>
+                            </div>
+                            <a id="compress-download-link" class="hidden mt-6 w-full sm:w-auto inline-block bg-teal-500 hover:bg-teal-600 text-white font-bold py-3 px-6 rounded-lg">Descargar Imagen Comprimida</a>
+                        </div>
+                    </div>
+                </div>
+
             </div>
         </div>
     </div>
@@ -543,7 +588,7 @@
                 }
             });
             
-            // --- HERRAMIENTA 6: QUITAR FONDO DE IMAGEN (REIMPLEMENTADA CON BodyPix) ---
+            // --- HERRAMIENTA 6: QUITAR FONDO DE IMAGEN ---
             const removeBgInput = document.getElementById('remove-bg-input');
             const removeBgLoader = document.getElementById('remove-bg-loader');
             const removeBgLoaderText = document.getElementById('remove-bg-loader-text');
@@ -553,110 +598,33 @@
             const removeBgDownload = document.getElementById('remove-bg-download');
             const removeBgStatus = document.getElementById('remove-bg-status');
 
-            // Cargamos BodyPix (si está disponible) y lo reutilizamos
-            let bodyPixNet = null;
-
-            async function initBodyPix() {
-                try {
-                    removeBgLoaderText.textContent = "Cargando modelo de segmentación... (puede tardar un poco)";
-                    removeBgLoader.classList.remove('hidden');
-                    bodyPixNet = await bodyPix.load({
-                        architecture: 'MobileNetV1',
-                        outputStride: 16,
-                        multiplier: 0.75,
-                        quantBytes: 2
-                    });
-                    removeBgLoader.classList.add('hidden');
-                    // modelo listo; dejamos la interfaz como estaba
-                } catch (err) {
-                    console.error('Error cargando BodyPix:', err);
-                    removeBgLoader.classList.add('hidden');
-                    showMessage('No se pudo cargar el modelo de segmentación. Comprueba tu conexión o recarga la página.');
-                }
-            }
-
-            // bodyPix se carga por defer; si aún no está disponible, esperamos un poco
-            if (typeof bodyPix === 'undefined') {
-                const bpInterval = setInterval(() => {
-                    if (typeof bodyPix !== 'undefined') {
-                        clearInterval(bpInterval);
-                        initBodyPix();
-                    }
-                }, 200);
-            } else {
-                initBodyPix();
-            }
-
             removeBgInput.addEventListener('change', async (event) => {
                 const file = event.target.files[0];
                 if (!file) return;
 
-                // UI: loader visible
+                if (typeof bgRemoval === 'undefined' || typeof bgRemoval.removeBackground !== 'function') {
+                    showMessage('La herramienta para quitar fondo no está disponible. Revisa tu conexión a internet y recarga la página.');
+                    return;
+                }
+                
                 removeBgStatus.classList.add('hidden');
                 removeBgLoaderText.textContent = "Eliminando fondo... Esto puede tardar unos segundos.";
                 removeBgLoader.classList.remove('hidden');
                 removeBgOutput.classList.add('hidden');
                 removeBgDownload.classList.add('hidden');
-
+                
                 const originalUrl = URL.createObjectURL(file);
                 removeBgOriginal.src = originalUrl;
 
                 try {
-                    if (!bodyPixNet) {
-                        throw new Error('Modelo de segmentación no cargado');
-                    }
+                    const blob = await bgRemoval.removeBackground(file);
+                    const resultUrl = URL.createObjectURL(blob);
+                    removeBgResult.src = resultUrl;
+                    removeBgDownload.href = resultUrl;
+                    removeBgDownload.download = `${file.name.replace(/\.[^/.]+$/, "")}_sin_fondo.png`;
 
-                    // Cargamos la imagen en un elemento Image para procesar
-                    const img = new Image();
-                    img.crossOrigin = "anonymous";
-                    img.src = originalUrl;
-
-                    await new Promise((resolve, reject) => {
-                        img.onload = resolve;
-                        img.onerror = reject;
-                    });
-
-                    // Offscreen canvas para procesar píxeles
-                    const offCanvas = document.createElement('canvas');
-                    offCanvas.width = img.width;
-                    offCanvas.height = img.height;
-                    const offCtx = offCanvas.getContext('2d');
-                    offCtx.drawImage(img, 0, 0);
-
-                    // Segmentación de persona
-                    const segmentation = await bodyPixNet.segmentPerson(offCanvas, {
-                        internalResolution: 'medium',
-                        segmentationThreshold: 0.7
-                    });
-
-                    // Manipular píxeles: hacer transparente lo que NO sea persona
-                    const imageData = offCtx.getImageData(0, 0, offCanvas.width, offCanvas.height);
-                    const pixelData = imageData.data;
-                    for (let i = 0; i < pixelData.length; i += 4) {
-                        const isPerson = segmentation.data[i / 4];
-                        if (!isPerson) {
-                            pixelData[i + 3] = 0; // alpha = 0 -> transparente
-                        }
-                    }
-                    offCtx.putImageData(imageData, 0, 0);
-
-                    // Generar blob PNG y mostrar / permitir descarga
-                    await new Promise((resolve) => {
-                        offCanvas.toBlob((blob) => {
-                            if (!blob) {
-                                throw new Error('No se pudo generar la imagen resultante');
-                            }
-                            const resultUrl = URL.createObjectURL(blob);
-                            removeBgResult.src = resultUrl;
-                            removeBgDownload.href = resultUrl;
-                            removeBgDownload.download = `${file.name.replace(/\.[^/.]+$/, "")}_sin_fondo.png`;
-
-                            removeBgOutput.classList.remove('hidden');
-                            removeBgDownload.classList.remove('hidden');
-                            resolve();
-                        }, 'image/png');
-                    });
-
+                    removeBgOutput.classList.remove('hidden');
+                    removeBgDownload.classList.remove('hidden');
                 } catch (error) {
                     console.error('Error al quitar el fondo:', error);
                     showMessage('Hubo un error al procesar la imagen. Inténtalo de nuevo.');
@@ -665,7 +633,81 @@
                     removeBgStatus.classList.remove('hidden');
                 }
             });
+
+            // --- HERRAMIENTA 7: COMPRIMIR IMAGEN ---
+            const compressInput = document.getElementById('compress-image-input');
+            const compressLoader = document.getElementById('compress-loader');
+            const compressOutput = document.getElementById('compress-output');
+            const compressQualitySlider = document.getElementById('compress-quality');
+            const compressQualityValue = document.getElementById('compress-quality-value');
+            const compressOriginalImg = document.getElementById('compress-original-img');
+            const compressOriginalSize = document.getElementById('compress-original-size');
+            const compressResultImg = document.getElementById('compress-result-img');
+            const compressResultSize = document.getElementById('compress-result-size');
+            const compressDownloadLink = document.getElementById('compress-download-link');
+            let originalImageFile = null;
+
+            function formatBytes(bytes, decimals = 2) {
+                if (bytes === 0) return '0 Bytes';
+                const k = 1024;
+                const dm = decimals < 0 ? 0 : decimals;
+                const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+            }
+
+            async function compressAndDisplayImage() {
+                if (!originalImageFile) return;
+
+                compressLoader.classList.remove('hidden');
+                compressDownloadLink.classList.add('hidden');
+
+                const quality = parseInt(compressQualitySlider.value) / 100;
+                compressQualityValue.textContent = compressQualitySlider.value;
+                
+                const image = new Image();
+                image.src = URL.createObjectURL(originalImageFile);
+                await image.decode(); // Espera a que la imagen se cargue completamente
+
+                const canvas = document.createElement('canvas');
+                canvas.width = image.width;
+                canvas.height = image.height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(image, 0, 0);
+
+                canvas.toBlob( (blob) => {
+                    const compressedUrl = URL.createObjectURL(blob);
+                    compressResultImg.src = compressedUrl;
+                    
+                    const sizeReduction = 100 - (blob.size / originalImageFile.size) * 100;
+                    compressResultSize.textContent = `${formatBytes(blob.size)} (${sizeReduction.toFixed(1)}% menos)`;
+
+                    compressDownloadLink.href = compressedUrl;
+                    compressDownloadLink.download = `${originalImageFile.name.replace(/\.[^/.]+$/, "")}_comprimido.jpg`;
+                    compressDownloadLink.classList.remove('hidden');
+                    compressLoader.classList.add('hidden');
+                }, 'image/jpeg', quality);
+            }
+
+            compressInput.addEventListener('change', async (event) => {
+                const file = event.target.files[0];
+                if (!file) {
+                    compressOutput.classList.add('hidden');
+                    return;
+                }
+                originalImageFile = file;
+
+                compressOriginalImg.src = URL.createObjectURL(file);
+                compressOriginalSize.textContent = `Tamaño: ${formatBytes(file.size)}`;
+                compressOutput.classList.remove('hidden');
+                
+                compressAndDisplayImage();
+            });
+
+            compressQualitySlider.addEventListener('input', compressAndDisplayImage);
+
         });
     </script>
 </body>
 </html>
+
