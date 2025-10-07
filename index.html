@@ -44,6 +44,16 @@
             color: #aaa; float: right; font-size: 28px;
             font-weight: bold; cursor: pointer;
         }
+        #signature-canvas {
+            border: 2px dashed #ccc;
+            border-radius: 0.5rem;
+            cursor: crosshair;
+        }
+        .pdf-page-canvas {
+            border: 1px solid #eee;
+            margin-bottom: 1rem;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body class="bg-gray-100 text-gray-800">
@@ -126,6 +136,14 @@
                         </svg>
                         <h2 class="text-xl font-semibold mb-2">Recortar Audio</h2>
                         <p class="text-gray-500">Corta un fragmento de un archivo de audio.</p>
+                    </div>
+                     <!-- Firmar PDF -->
+                    <div onclick="showTool('sign-pdf')" class="tool-card bg-white p-6 rounded-lg shadow-md cursor-pointer flex flex-col items-center text-center">
+                        <svg class="w-16 h-16 mb-4 text-cyan-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+                        </svg>
+                        <h2 class="text-xl font-semibold mb-2">Firmar PDF</h2>
+                        <p class="text-gray-500">Dibuja tu firma y añádela a un documento PDF.</p>
                     </div>
                 </main>
             </div>
@@ -338,6 +356,46 @@
                     </div>
                 </div>
 
+                <!-- Herramienta: Firmar PDF -->
+                <div id="sign-pdf" class="tool-content hidden bg-white p-8 rounded-lg shadow-lg">
+                    <h2 class="text-3xl font-bold mb-6 text-center">Firmar Documento PDF</h2>
+                    <div class="max-w-4xl mx-auto text-center">
+                        
+                        <!-- Paso 1: Subir PDF -->
+                        <div id="sign-step-1">
+                            <label class="w-full inline-block cursor-pointer rounded-lg bg-cyan-500 px-4 py-3 text-center font-bold text-white hover:bg-cyan-600">
+                                <span>Seleccionar Archivo PDF</span>
+                                <input type="file" id="sign-pdf-input" accept=".pdf" class="hidden"/>
+                            </label>
+                            <p id="sign-pdf-filename" class="mt-4 text-sm text-gray-600"></p>
+                        </div>
+
+                        <!-- Paso 2: Dibujar Firma -->
+                        <div id="sign-step-2" class="hidden mt-6">
+                            <h3 class="text-xl font-semibold mb-2">Paso 1: Dibuja tu firma</h3>
+                            <canvas id="signature-canvas" width="400" height="200" class="bg-white mx-auto"></canvas>
+                            <div class="mt-4 flex justify-center space-x-4">
+                                <button id="clear-signature-button" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg">Limpiar</button>
+                                <button id="save-signature-button" class="bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-2 px-4 rounded-lg">Guardar Firma</button>
+                            </div>
+                        </div>
+
+                        <!-- Paso 3: Colocar Firma -->
+                        <div id="sign-step-3" class="hidden mt-6">
+                            <h3 class="text-xl font-semibold mb-4">Paso 2: Haz clic en el PDF para colocar la firma</h3>
+                             <div id="sign-pdf-loader" class="hidden my-4 text-center">
+                                <svg class="animate-spin h-8 w-8 text-cyan-600 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                <p class="mt-2 text-gray-600">Procesando...</p>
+                            </div>
+                            <div id="pdf-pages-container" class="bg-gray-200 p-4 rounded-lg overflow-auto max-h-[60vh]"></div>
+                        </div>
+
+                    </div>
+                </div>
+
             </div>
         </div>
     </div>
@@ -404,7 +462,7 @@
             
             // --- LIBRERÍAS Y HERRAMIENTAS ---
             pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.worker.min.js`;
-            const { PDFDocument } = PDFLib;
+            const { PDFDocument, rgb } = PDFLib;
 
             // --- HERRAMIENTA 1: PDF a JPG ---
             const pdfToJpgInput = document.getElementById('pdf-to-jpg-input');
@@ -732,7 +790,7 @@
                 const image = new Image();
                 const imageURL = URL.createObjectURL(originalImageFile);
                 image.src = imageURL;
-                await image.decode();
+                await new Promise(resolve => image.onload = resolve);
                 URL.revokeObjectURL(imageURL); // Libera memoria
 
                 const canvas = document.createElement('canvas');
@@ -839,13 +897,12 @@
                     return;
                 }
 
-                trimAudioLoaderText.textContent = "Recortando audio...";
+                trimAudioLoaderText.textContent = "Recortando y codificando...";
                 trimAudioLoader.classList.remove('hidden');
                 trimAudioButton.disabled = true;
                 trimAudioOutput.classList.add('hidden');
 
                 try {
-                    // Recortar el buffer
                     const startOffset = Math.floor(startTime * audioFileBuffer.sampleRate);
                     const endOffset = Math.floor(endTime * audioFileBuffer.sampleRate);
                     const frameCount = endOffset - startOffset;
@@ -860,12 +917,14 @@
                         newBuffer.getChannelData(i).set(audioFileBuffer.getChannelData(i).subarray(startOffset, endOffset));
                     }
                     
-                    // Crear Blob WAV para la previsualización
                     trimmedWavBlob = bufferToWave(newBuffer);
                     trimmedAudioPlayer.src = URL.createObjectURL(trimmedWavBlob);
                     
-                    // Generar el MP3 en segundo plano
-                    trimmedMp3Blob = await encodeToMp3(newBuffer);
+                    trimmedMp3Blob = null; // Reset mp3 blob
+                    encodeToMp3(newBuffer).then(mp3Blob => {
+                        trimmedMp3Blob = mp3Blob;
+                         console.log("MP3 encoding complete");
+                    });
 
                     trimAudioOutput.classList.remove('hidden');
 
@@ -884,7 +943,7 @@
                 const extension = (format === 'mp3') ? 'mp3' : 'wav';
 
                 if (!blob) {
-                    showMessage("No hay audio recortado para descargar.");
+                    showMessage("Aún no se ha generado el archivo " + format.toUpperCase() + ". Por favor, espera un momento.");
                     return;
                 }
 
@@ -899,20 +958,34 @@
                 document.body.removeChild(a);
             });
 
-            // Función para convertir a WAV
             function bufferToWave(abuffer) {
                 const numOfChan = abuffer.numberOfChannels;
                 const length = abuffer.length * numOfChan * 2 + 44;
                 const buffer = new ArrayBuffer(length);
                 const view = new DataView(buffer);
-                const channels = [];
                 let offset = 0;
-                let pos = 0;
 
-                setUint32(0x46464952); // "RIFF"
-                setUint32(length - 8); 
-                setUint32(0x45564157); // "WAVE"
-                setUint32(0x20746d66); // "fmt "
+                const writeString = (s) => {
+                    for (let i = 0; i < s.length; i++) {
+                        view.setUint8(offset + i, s.charCodeAt(i));
+                    }
+                    offset += s.length;
+                };
+
+                const setUint16 = (data) => {
+                    view.setUint16(offset, data, true);
+                    offset += 2;
+                };
+
+                const setUint32 = (data) => {
+                    view.setUint32(offset, data, true);
+                    offset += 4;
+                };
+
+                writeString('RIFF');
+                setUint32(length - 8);
+                writeString('WAVE');
+                writeString('fmt ');
                 setUint32(16);
                 setUint16(1);
                 setUint16(numOfChan);
@@ -920,71 +993,249 @@
                 setUint32(abuffer.sampleRate * 2 * numOfChan);
                 setUint16(numOfChan * 2);
                 setUint16(16);
-                setUint32(0x61746164); // "data"
+                writeString('data');
                 setUint32(abuffer.length * numOfChan * 2);
 
-                for (let i = 0; i < numOfChan; i++) {
+                const channels = [];
+                for(let i = 0; i < numOfChan; i++){
                     channels.push(abuffer.getChannelData(i));
                 }
 
-                while (pos < abuffer.length) {
-                    for (let i = 0; i < numOfChan; i++) {
+                let pos = 0;
+                while(pos < abuffer.length) {
+                    for(let i = 0; i < numOfChan; i++) {   
                         let sample = Math.max(-1, Math.min(1, channels[i][pos]));
-                        sample = (0.5 + sample < 0 ? sample * 32768 : sample * 32767) | 0;
+                        sample = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
                         view.setInt16(offset, sample, true);
                         offset += 2;
                     }
                     pos++;
                 }
+                
                 return new Blob([view], { type: 'audio/wav' });
-
-                function setUint16(data) {
-                    view.setUint16(offset, data, true);
-                    offset += 2;
-                }
-                function setUint32(data) {
-                    view.setUint32(offset, data, true);
-                    offset += 4;
-                }
             }
             
-            // Función para convertir a MP3
             function encodeToMp3(audioBuffer) {
                 return new Promise((resolve, reject) => {
-                    const channels = audioBuffer.numberOfChannels;
-                    const sampleRate = audioBuffer.sampleRate;
-                    const kbps = 128; // Calidad de MP3
-                    const mp3encoder = new lamejs.Mp3Encoder(channels, sampleRate, kbps);
-                    
-                    const channelData = [];
-                    for(let i=0; i < channels; i++) {
-                        channelData.push(audioBuffer.getChannelData(i));
-                    }
-                    
-                    let mp3Data = [];
-                    const sampleBlockSize = 1152;
-                    
-                    for (let i = 0; i < audioBuffer.length; i += sampleBlockSize) {
-                        const leftChunk = channelData[0].subarray(i, i + sampleBlockSize);
-                        let rightChunk = null;
-                        if (channels > 1) {
-                           rightChunk = channelData[1].subarray(i, i + sampleBlockSize);
+                    try {
+                        const channels = audioBuffer.numberOfChannels;
+                        const sampleRate = audioBuffer.sampleRate;
+                        const kbps = 128;
+                        const mp3encoder = new lamejs.Mp3Encoder(channels, sampleRate, kbps);
+                        
+                        const samples = new Int16Array(audioBuffer.length * channels);
+                        let offset = 0;
+                        for(let i = 0; i < audioBuffer.length; i++){
+                            for(let ch = 0; ch < channels; ch++){
+                                let sample = audioBuffer.getChannelData(ch)[i];
+                                sample = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
+                                samples[offset++] = sample;
+                            }
                         }
-                        const mp3buf = mp3encoder.encodeBuffer(leftChunk, rightChunk);
+
+                        const mp3Data = [];
+                        const sampleBlockSize = 1152;
+                        
+                        for (let i = 0; i < samples.length; i += sampleBlockSize * channels) {
+                            const sampleChunk = samples.subarray(i, i + sampleBlockSize * channels);
+                            const mp3buf = mp3encoder.encodeBuffer(sampleChunk);
+                            if (mp3buf.length > 0) {
+                                mp3Data.push(mp3buf);
+                            }
+                        }
+                        
+                        const mp3buf = mp3encoder.flush();
                         if (mp3buf.length > 0) {
-                            mp3Data.push(new Int8Array(mp3buf));
+                            mp3Data.push(mp3buf);
                         }
+                        
+                        const blob = new Blob(mp3Data, {type: 'audio/mpeg'});
+                        resolve(blob);
+                    } catch (e) {
+                        reject(e);
                     }
-                    
-                    const mp3buf = mp3encoder.flush();
-                    if (mp3buf.length > 0) {
-                        mp3Data.push(new Int8Array(mp3buf));
-                    }
-                    
-                    const blob = new Blob(mp3Data, {type: 'audio/mpeg'});
-                    resolve(blob);
                 });
             }
+
+
+            // --- HERRAMIENTA 9: FIRMAR PDF ---
+            const signPdfInput = document.getElementById('sign-pdf-input');
+            const signStep1 = document.getElementById('sign-step-1');
+            const signStep2 = document.getElementById('sign-step-2');
+            const signStep3 = document.getElementById('sign-step-3');
+            const signPdfFilename = document.getElementById('sign-pdf-filename');
+            const signPdfLoader = document.getElementById('sign-pdf-loader');
+            const pdfPagesContainer = document.getElementById('pdf-pages-container');
+
+            const signatureCanvas = document.getElementById('signature-canvas');
+            const signatureCtx = signatureCanvas.getContext('2d');
+            const clearSignatureButton = document.getElementById('clear-signature-button');
+            const saveSignatureButton = document.getElementById('save-signature-button');
+            
+            let isDrawing = false;
+            let lastX = 0;
+            let lastY = 0;
+            let signatureDataUrl = null;
+            let originalPdfBytes = null;
+
+            function getMousePos(canvas, evt) {
+                const rect = canvas.getBoundingClientRect();
+                return {
+                    x: evt.clientX - rect.left,
+                    y: evt.clientY - rect.top
+                };
+            }
+             function getTouchPos(canvas, touch) {
+                const rect = canvas.getBoundingClientRect();
+                return {
+                    x: touch.clientX - rect.left,
+                    y: touch.clientY - rect.top
+                };
+            }
+
+            function draw(x, y) {
+                if (!isDrawing) return;
+                signatureCtx.strokeStyle = '#000';
+                signatureCtx.lineWidth = 2;
+                signatureCtx.lineCap = 'round';
+                signatureCtx.beginPath();
+                signatureCtx.moveTo(lastX, lastY);
+                signatureCtx.lineTo(x, y);
+                signatureCtx.stroke();
+                [lastX, lastY] = [x, y];
+            }
+
+            signatureCanvas.addEventListener('mousedown', (e) => {
+                isDrawing = true;
+                const pos = getMousePos(signatureCanvas, e);
+                [lastX, lastY] = [pos.x, pos.y];
+            });
+            signatureCanvas.addEventListener('mousemove', (e) => draw(getMousePos(signatureCanvas, e).x, getMousePos(signatureCanvas, e).y));
+            signatureCanvas.addEventListener('mouseup', () => isDrawing = false);
+            signatureCanvas.addEventListener('mouseleave', () => isDrawing = false);
+            
+            signatureCanvas.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                isDrawing = true;
+                const pos = getTouchPos(signatureCanvas, e.touches[0]);
+                [lastX, lastY] = [pos.x, pos.y];
+            });
+            signatureCanvas.addEventListener('touchmove', (e) => {
+                e.preventDefault();
+                 draw(getTouchPos(signatureCanvas, e.touches[0]).x, getTouchPos(signatureCanvas, e.touches[0]).y)
+            });
+            signatureCanvas.addEventListener('touchend', () => isDrawing = false);
+
+
+            clearSignatureButton.addEventListener('click', () => {
+                signatureCtx.clearRect(0, 0, signatureCanvas.width, signatureCanvas.height);
+            });
+
+            saveSignatureButton.addEventListener('click', () => {
+                signatureDataUrl = signatureCanvas.toDataURL('image/png');
+                signStep2.classList.add('hidden');
+                signStep3.classList.remove('hidden');
+            });
+            
+            signPdfInput.addEventListener('change', async (event) => {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                signPdfFilename.textContent = `Archivo: ${file.name}`;
+                signStep2.classList.remove('hidden');
+                signStep3.classList.add('hidden'); // Ocultar por si se sube un nuevo PDF
+                pdfPagesContainer.innerHTML = '';
+                signatureCtx.clearRect(0, 0, signatureCanvas.width, signatureCanvas.height);
+                signatureDataUrl = null;
+
+                try {
+                    const fileReader = new FileReader();
+                    fileReader.readAsArrayBuffer(file);
+                    fileReader.onload = async (e) => {
+                        originalPdfBytes = e.target.result;
+                        const typedarray = new Uint8Array(originalPdfBytes);
+                        const pdf = await pdfjsLib.getDocument(typedarray).promise;
+
+                        for (let i = 1; i <= pdf.numPages; i++) {
+                            const page = await pdf.getPage(i);
+                            const viewport = page.getViewport({ scale: 1 });
+                            const canvas = document.createElement('canvas');
+                            canvas.className = 'pdf-page-canvas shadow-lg';
+                            const context = canvas.getContext('2d');
+                            
+                            const containerWidth = pdfPagesContainer.clientWidth;
+                            const scale = containerWidth / viewport.width;
+                            const scaledViewport = page.getViewport({ scale: scale });
+                            
+                            canvas.height = scaledViewport.height;
+                            canvas.width = scaledViewport.width;
+                            canvas.dataset.pageNumber = i;
+                            canvas.dataset.originalWidth = viewport.width;
+                            canvas.dataset.originalHeight = viewport.height;
+
+                            await page.render({ canvasContext: context, viewport: scaledViewport }).promise;
+                            pdfPagesContainer.appendChild(canvas);
+                        }
+                    };
+                } catch(e) {
+                    showMessage("Error al cargar el PDF.");
+                    console.error(e);
+                }
+            });
+
+            pdfPagesContainer.addEventListener('click', async (e) => {
+                if (!e.target.matches('.pdf-page-canvas')) return;
+                if (!signatureDataUrl) {
+                    showMessage("Por favor, primero guarda tu firma.");
+                    return;
+                }
+
+                signPdfLoader.classList.remove('hidden');
+
+                const canvas = e.target;
+                const pageNum = parseInt(canvas.dataset.pageNumber) - 1;
+
+                const rect = canvas.getBoundingClientRect();
+                const clickX = e.clientX - rect.left;
+                const clickY = e.clientY - rect.top;
+
+                try {
+                    const pdfDoc = await PDFDocument.load(originalPdfBytes);
+                    const pages = pdfDoc.getPages();
+                    const targetPage = pages[pageNum];
+                    
+                    const signatureImage = await pdfDoc.embedPng(signatureDataUrl);
+                    
+                    const { width: pageWidth, height: pageHeight } = targetPage.getSize();
+                    const scaleX = pageWidth / canvas.width;
+                    const scaleY = pageHeight / canvas.height;
+                    
+                    // Ajustar el tamaño de la firma (ej: 100px de ancho)
+                    const sigWidth = 100;
+                    const sigHeight = (sigWidth / signatureImage.width) * signatureImage.height;
+
+                    targetPage.drawImage(signatureImage, {
+                        x: clickX * scaleX - (sigWidth/2), // Centrar la firma en el clic
+                        y: pageHeight - (clickY * scaleY) - (sigHeight/2),
+                        width: sigWidth,
+                        height: sigHeight,
+                    });
+
+                    const pdfBytes = await pdfDoc.save();
+                    const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+                    const link = document.createElement('a');
+                    link.href = URL.createObjectURL(blob);
+                    link.download = `${signPdfInput.files[0].name.replace(/\.[^/.]+$/, "")}_firmado.pdf`;
+                    link.click();
+                    URL.revokeObjectURL(link.href);
+
+                } catch (err) {
+                    console.error("Error al firmar el PDF:", err);
+                    showMessage("Ocurrió un error al firmar el documento.");
+                } finally {
+                    signPdfLoader.classList.add('hidden');
+                }
+            });
 
         });
     </script>
