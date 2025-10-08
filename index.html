@@ -406,7 +406,13 @@
 
                         <!-- Paso 3: Colocar Firma -->
                         <div id="sign-step-3" class="hidden mt-6">
-                            <h3 class="text-xl font-semibold mb-4">3. Mueve y ajusta la firma. Luego, aplica los cambios.</h3>
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="text-xl font-semibold">3. Mueve y ajusta la firma</h3>
+                                <div>
+                                    <button id="redraw-signature-button" class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded-lg text-sm mr-2">Dibujar Nueva Firma</button>
+                                    <button id="apply-signature-button" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg text-sm">Aplicar y Descargar</button>
+                                </div>
+                            </div>
                              <div id="sign-pdf-loader" class="hidden my-4 text-center">
                                 <svg class="animate-spin h-8 w-8 text-cyan-600 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -415,7 +421,6 @@
                                 <p id="sign-pdf-loader-text" class="mt-2 text-gray-600">Procesando...</p>
                             </div>
                             <div id="pdf-pages-container" class="bg-gray-200 p-4 rounded-lg overflow-auto max-h-[60vh]"></div>
-                             <button id="apply-signature-button" class="hidden mt-6 bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg">Aplicar Firma y Descargar PDF</button>
                         </div>
 
                     </div>
@@ -458,6 +463,13 @@
                 });
                 if (toolId === 'password-generator') {
                     generatePassword();
+                }
+                if (toolId === 'sign-pdf') {
+                    // Cargar firma guardada al entrar en la herramienta
+                    const savedSignature = sessionStorage.getItem('rrtools_signature');
+                    if (savedSignature) {
+                        signatureDataUrl = savedSignature;
+                    }
                 }
             }
 
@@ -1101,6 +1113,7 @@
             const signPdfLoaderText = document.getElementById('sign-pdf-loader-text');
             const pdfPagesContainer = document.getElementById('pdf-pages-container');
             const applySignatureButton = document.getElementById('apply-signature-button');
+            const redrawSignatureButton = document.getElementById('redraw-signature-button');
 
             const signatureCanvas = document.getElementById('signature-canvas');
             const signatureCtx = signatureCanvas.getContext('2d');
@@ -1122,13 +1135,13 @@
                 offsetY: 0
             };
 
-
             function resetSignPdfTool() {
                 signPdfInput.value = '';
                 signPdfFilename.textContent = '';
                 pdfPagesContainer.innerHTML = '';
-                signatureCtx.clearRect(0, 0, signatureCanvas.width, signatureCanvas.height);
-                signatureDataUrl = null;
+                // No borramos la firma guardada de la sesión
+                // signatureDataUrl = null;
+                // sessionStorage.removeItem('rrtools_signature');
                 originalPdfBytes = null;
                 signOriginalPdfName = '';
                 signStep1.classList.remove('hidden');
@@ -1222,7 +1235,6 @@
                         await page.render({ canvasContext: context, viewport: scaledViewport }).promise;
                         
                         canvas.addEventListener('click', (e) => {
-                            // PageX/Y son relativas a todo el documento, necesitamos coordenadas relativas al canvas
                             const rect = canvas.getBoundingClientRect();
                             const x = e.clientX - rect.left;
                             const y = e.clientY - rect.top;
@@ -1246,6 +1258,7 @@
                     return;
                 }
                 signatureDataUrl = signatureCanvas.toDataURL('image/png');
+                sessionStorage.setItem('rrtools_signature', signatureDataUrl); // Guardar en la sesión
                 signStep2.classList.add('hidden');
                 signStep3.classList.remove('hidden');
                 await renderPdfPagesForSigning();
@@ -1258,14 +1271,28 @@
                 resetSignPdfTool();
                 signOriginalPdfName = file.name;
                 signPdfFilename.textContent = `Archivo: ${file.name}`;
+                
+                // Cargar la firma guardada si existe
+                const savedSignature = sessionStorage.getItem('rrtools_signature');
+                if (savedSignature) {
+                    signatureDataUrl = savedSignature;
+                }
 
                 try {
                     const fileReader = new FileReader();
                     fileReader.readAsArrayBuffer(file);
-                    fileReader.onload = (e) => {
+                    fileReader.onload = async (e) => {
                         originalPdfBytes = e.target.result;
                         signStep1.classList.add('hidden');
-                        signStep2.classList.remove('hidden');
+
+                        if (signatureDataUrl) {
+                            // Si ya hay firma, saltar al paso 3
+                            signStep3.classList.remove('hidden');
+                            await renderPdfPagesForSigning();
+                        } else {
+                            // Si no hay firma, ir al paso 2 para dibujarla
+                            signStep2.classList.remove('hidden');
+                        }
                     };
                 } catch(e) {
                     showMessage("Error al cargar el archivo PDF.");
@@ -1274,9 +1301,24 @@
                 }
             });
 
+            redrawSignatureButton.addEventListener('click', () => {
+                signStep3.classList.add('hidden');
+                signStep2.classList.remove('hidden');
+                applySignatureButton.classList.add('hidden');
+                if (activeSignature.element) {
+                    activeSignature.element.remove();
+                    activeSignature.element = null;
+                }
+                signatureCtx.clearRect(0, 0, signatureCanvas.width, signatureCanvas.height);
+                signatureDataUrl = null; // Borrar la firma actual para forzar el redibujado
+                sessionStorage.removeItem('rrtools_signature'); // Borrar de la sesión también
+            });
+
             function placeSignature(clickX, clickY, targetCanvas) {
                 if (!signatureDataUrl) {
-                    showMessage("Primero guarda tu firma.");
+                    showMessage("Error: No se ha encontrado la firma. Por favor, dibújala de nuevo.");
+                    signStep3.classList.add('hidden');
+                    signStep2.classList.remove('hidden');
                     return;
                 }
 
@@ -1298,58 +1340,88 @@
                 signatureContainer.appendChild(signatureImg);
                 signatureContainer.appendChild(resizeHandle);
                 
-                targetCanvas.parentNode.insertBefore(signatureContainer, targetCanvas.nextSibling);
+                pdfPagesContainer.appendChild(signatureContainer);
 
                 activeSignature.element = signatureContainer;
-                activeSignature.page = targetCanvas; // Guardamos en qué canvas estamos
+                activeSignature.page = targetCanvas;
 
                 signatureContainer.style.left = `${targetCanvas.offsetLeft + clickX - (signatureContainer.offsetWidth / 2)}px`;
                 signatureContainer.style.top = `${targetCanvas.offsetTop + clickY - (signatureContainer.offsetHeight / 2)}px`;
 
-                // --- Eventos de Mover y Redimensionar ---
                 let initialMouseX, initialMouseY, initialWidth, initialHeight, initialLeft, initialTop;
-
-                signatureContainer.addEventListener('mousedown', (e) => {
-                    if (e.target.id === 'resize-handle') return; // No arrastrar si se está redimensionando
+                
+                const dragStart = (e) => {
                     e.preventDefault();
                     activeSignature.isDragging = true;
-                    initialMouseX = e.clientX;
-                    initialMouseY = e.clientY;
+                    const clientX = e.clientX || e.touches[0].clientX;
+                    const clientY = e.clientY || e.touches[0].clientY;
+                    initialMouseX = clientX;
+                    initialMouseY = clientY;
                     initialLeft = signatureContainer.offsetLeft;
                     initialTop = signatureContainer.offsetTop;
-                });
-                
-                resizeHandle.addEventListener('mousedown', (e) => {
+                    document.addEventListener('mousemove', dragMove);
+                    document.addEventListener('touchmove', dragMove);
+                    document.addEventListener('mouseup', dragEnd);
+                    document.addEventListener('touchend', dragEnd);
+                };
+
+                const resizeStart = (e) => {
                     e.preventDefault();
                     e.stopPropagation();
                     activeSignature.isResizing = true;
-                    initialMouseX = e.clientX;
-                    initialMouseY = e.clientY;
+                    const clientX = e.clientX || e.touches[0].clientX;
+                    const clientY = e.clientY || e.touches[0].clientY;
+                    initialMouseX = clientX;
+                    initialMouseY = clientY;
                     initialWidth = signatureContainer.offsetWidth;
                     initialHeight = signatureContainer.offsetHeight;
-                });
+                    document.addEventListener('mousemove', resizeMove);
+                    document.addEventListener('touchmove', resizeMove);
+                    document.addEventListener('mouseup', resizeEnd);
+                    document.addEventListener('touchend', resizeEnd);
+                };
 
-                document.addEventListener('mousemove', (e) => {
+                const dragMove = (e) => {
                     if (activeSignature.isDragging) {
-                        const dx = e.clientX - initialMouseX;
-                        const dy = e.clientY - initialMouseY;
+                        const clientX = e.clientX || e.touches[0].clientX;
+                        const clientY = e.clientY || e.touches[0].clientY;
+                        const dx = clientX - initialMouseX;
+                        const dy = clientY - initialMouseY;
                         signatureContainer.style.left = `${initialLeft + dx}px`;
                         signatureContainer.style.top = `${initialTop + dy}px`;
                     }
+                };
+
+                const resizeMove = (e) => {
                     if (activeSignature.isResizing) {
-                        const dw = e.clientX - initialMouseX;
-                        const dh = e.clientY - initialMouseY;
+                         const clientX = e.clientX || e.touches[0].clientX;
+                        const dw = clientX - initialMouseX;
                         const newWidth = initialWidth + dw;
-                        // Mantenemos la proporción 2:1
                         signatureContainer.style.width = `${Math.max(30, newWidth)}px`; 
                         signatureContainer.style.height = `${Math.max(15, newWidth / 2)}px`;
                     }
-                });
-
-                document.addEventListener('mouseup', () => {
+                };
+                
+                const dragEnd = () => {
                     activeSignature.isDragging = false;
+                    document.removeEventListener('mousemove', dragMove);
+                    document.removeEventListener('touchmove', dragMove);
+                    document.removeEventListener('mouseup', dragEnd);
+                    document.removeEventListener('touchend', dragEnd);
+                };
+
+                 const resizeEnd = () => {
                     activeSignature.isResizing = false;
-                });
+                    document.removeEventListener('mousemove', resizeMove);
+                    document.removeEventListener('touchmove', resizeMove);
+                    document.removeEventListener('mouseup', resizeEnd);
+                    document.removeEventListener('touchend', resizeEnd);
+                };
+
+                signatureContainer.addEventListener('mousedown', dragStart);
+                signatureContainer.addEventListener('touchstart', dragStart);
+                resizeHandle.addEventListener('mousedown', resizeStart);
+                resizeHandle.addEventListener('touchstart', resizeStart);
 
                 applySignatureButton.classList.remove('hidden');
             }
@@ -1407,7 +1479,6 @@
                 } finally {
                     signPdfLoader.classList.add('hidden');
                     applySignatureButton.disabled = false;
-                    applySignatureButton.classList.add('hidden');
                 }
             });
         });
