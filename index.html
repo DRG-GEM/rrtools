@@ -11,8 +11,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.min.js"></script>
     <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
-    <!-- CDN para la herramienta de quitar fondo -->
-    <script src="https://cdn.jsdelivr.net/npm/@imgly/background-removal@latest/dist/browser.js" defer></script>
+    <!-- CDN para la herramienta de quitar fondo (sin defer para asegurar la carga) -->
+    <script src="https://cdn.jsdelivr.net/npm/@imgly/background-removal@latest/dist/browser.js"></script>
     <!-- CDN para codificar MP3 -->
     <script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js"></script>
     <style>
@@ -763,27 +763,29 @@
             const removeBgInitLoader = document.getElementById('remove-bg-init-loader');
             const removeBgContent = document.getElementById('remove-bg-content');
             const removeBgProcessLoader = document.getElementById('remove-bg-process-loader');
-            const removeBgLoaderText = document.getElementById('remove-bg-loader-text');
             const removeBgOutput = document.getElementById('remove-bg-output');
             const removeBgOriginal = document.getElementById('remove-bg-original');
             const removeBgResult = document.getElementById('remove-bg-result');
             const removeBgDownload = document.getElementById('remove-bg-download');
             
             function initializeRemoveBgTool() {
+                // Si la librería ya está cargada, muestra el contenido.
                 if (typeof bgRemoval !== 'undefined' && typeof bgRemoval.removeBackground === 'function') {
                     removeBgInitLoader.classList.add('hidden');
                     removeBgContent.classList.remove('hidden');
                     return;
                 }
                 
+                // Si no, muestra el loader y empieza a comprobar.
                 removeBgInitLoader.classList.remove('hidden');
                 removeBgContent.classList.add('hidden');
 
                 let checks = 0;
-                const maxChecks = 100; // 10 seconds timeout
+                const maxChecks = 50; // 5 segundos de timeout
 
                 const checkInterval = setInterval(() => {
                     checks++;
+                    // Comprueba si la librería ya está disponible en el objeto window
                     if (typeof bgRemoval !== 'undefined' && typeof bgRemoval.removeBackground === 'function') {
                         clearInterval(checkInterval);
                         removeBgInitLoader.classList.add('hidden');
@@ -801,7 +803,7 @@
             removeBgInput.addEventListener('change', async (event) => {
                 const file = event.target.files[0];
                 if (!file) return;
-
+                
                 removeBgContent.classList.add('hidden');
                 removeBgProcessLoader.classList.remove('hidden');
                 removeBgOutput.classList.add('hidden');
@@ -1171,15 +1173,13 @@
             function setupSignatureCanvas() {
                 const ratio = Math.max(window.devicePixelRatio || 1, 1);
                 const canvas = signatureCanvas;
-                // Ajusta el tamaño del canvas a su contenedor visible
                 const parentWidth = canvas.parentElement.offsetWidth;
                 canvas.style.width = '100%';
                 canvas.style.height = `${parentWidth / 2}px`;
-                // Ajusta la resolución del canvas para pantallas de alta densidad
                 canvas.width = canvas.offsetWidth * ratio;
                 canvas.height = canvas.offsetHeight * ratio;
                 canvas.getContext("2d").scale(ratio, ratio);
-                signatureCtx.clearRect(0, 0, canvas.width, canvas.height); // Limpiar al reajustar
+                signatureCtx.clearRect(0, 0, canvas.width, canvas.height); 
             }
             
             function resetSignPdfTool() {
@@ -1328,7 +1328,7 @@
                             await renderPdfPagesForSigning();
                         } else {
                             signStep2.classList.remove('hidden');
-                            setTimeout(setupSignatureCanvas, 50); // Pequeño delay para asegurar que el div es visible
+                            setTimeout(setupSignatureCanvas, 50); 
                         }
                     };
                 } catch(e) {
