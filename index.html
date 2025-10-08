@@ -11,6 +11,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.min.js"></script>
     <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+    <!-- CDN para la herramienta de quitar fondo (Carga estándar para máxima fiabilidad) -->
+    <script src="https://cdn.jsdelivr.net/npm/@imgly/background-removal@latest/dist/browser.js"></script>
     <!-- CDN para codificar MP3 -->
     <script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js"></script>
     <style>
@@ -131,7 +133,7 @@
                     </div>
                     <!-- Generador de QR -->
                     <div onclick="showTool('qr-generator')" class="tool-card bg-white p-6 rounded-lg shadow-md cursor-pointer flex flex-col items-center text-center">
-                        <svg class="w-16 h-16 mb-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 5h1m-6.465 6.465l.707.707M4 12H3m14.071 7.071l-.707-.707M5.635 5.636l-.707-.707M12 20v-1m-6.365-6.364l.707-.707M21 12h-1M6.929 18.364l.707.707"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8v8H8V8h8z"></path></svg>
+                        <svg class="w-16 h-16 mb-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 5h1m-6.465 6.465l.707.707M4 12H3m14.071 7.071l-.707-.707M5.635 5.636l-.707-.707M12 20v-1m-6.365-6.364l.707-.707M21 12h-1M6.Tus utilidades digitales en un solo lugar.929 18.364l.707.707"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8v8H8V8h8z"></path></svg>
                         <h2 class="text-xl font-semibold mb-2">Generador de QR</h2>
                         <p class="text-gray-500">Convierte texto o enlaces en un código QR.</p>
                     </div>
@@ -262,18 +264,11 @@
                 <div id="remove-bg" class="tool-content hidden bg-white p-8 rounded-lg shadow-lg">
                     <h2 class="text-3xl font-bold mb-6 text-center">Quitar Fondo de Imagen</h2>
                     <div class="max-w-xl mx-auto text-center">
-                        <div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4" role="alert">
+                         <div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4" role="alert">
                           <p class="font-bold">Nota</p>
                           <p>Esta herramienta funciona mejor con imágenes donde el objeto principal tiene un buen contraste con el fondo.</p>
                         </div>
-                        <div id="remove-bg-init-loader" class="my-4 text-center">
-                             <svg class="animate-spin h-8 w-8 text-purple-600 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            <p class="mt-2 text-gray-600">Cargando herramienta...</p>
-                        </div>
-                        <div id="remove-bg-content" class="hidden">
+                        <div id="remove-bg-content">
                             <label class="w-full inline-block cursor-pointer rounded-lg bg-purple-500 px-4 py-3 text-center font-bold text-white hover:bg-purple-600">
                                 <span>Seleccionar Imagen</span>
                                 <input type="file" id="remove-bg-input" accept="image/png, image/jpeg" class="hidden"/>
@@ -780,28 +775,25 @@
                 removeBgInitLoader.classList.remove('hidden');
                 removeBgContent.classList.add('hidden');
 
-                let checks = 0;
-                const maxChecks = 50; // 5 segundos de timeout
-
-                const checkInterval = setInterval(() => {
-                    checks++;
+                // Re-check for the library when the user clicks the tool, in case it loaded late.
+                 const checkInterval = setInterval(() => {
                     if (typeof bgRemoval !== 'undefined' && typeof bgRemoval.removeBackground === 'function') {
                         clearInterval(checkInterval);
                         removeBgInitLoader.classList.add('hidden');
                         removeBgContent.classList.remove('hidden');
-                        console.log("Herramienta Quitar Fondo cargada con éxito.");
-                    } else if (checks > maxChecks) {
-                        clearInterval(checkInterval);
-                        removeBgInitLoader.querySelector('p').textContent = "Error al cargar la herramienta.";
-                        showMessage('No se pudo cargar la herramienta para quitar fondo. Revisa tu conexión a internet y recarga la página.');
                     }
-                }, 100);
+                }, 200);
             }
 
 
             removeBgInput.addEventListener('change', async (event) => {
                 const file = event.target.files[0];
                 if (!file) return;
+
+                if (typeof bgRemoval === 'undefined' || typeof bgRemoval.removeBackground !== 'function') {
+                    showMessage('La herramienta para quitar fondo no está disponible. Por favor, espera a que cargue o revisa tu conexión a internet y recarga la página.');
+                    return;
+                }
                 
                 removeBgContent.classList.add('hidden');
                 removeBgProcessLoader.classList.remove('hidden');
