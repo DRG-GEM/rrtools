@@ -8,7 +8,8 @@
     <link rel="icon" type="image/png" href="https://github.com/DRG-GEM/rrtools/blob/main/rrtools.png?raw=true">
     
     <!-- Scripts de Estilos y Librerías -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Reemplazamos la CDN de Tailwind por una versión más estable -->
+    <script src="https://cdn.tailwindcss.com/3.3.0"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.min.js"></script>
     <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
@@ -228,8 +229,8 @@
                         </div>
                         <div id="remove-bg-controls">
                             <label id="remove-bg-label" class="w-full inline-block cursor-pointer rounded-lg bg-purple-500 px-4 py-3 text-center font-bold text-white hover:bg-purple-600 disabled:bg-gray-400">
-                                <span id="remove-bg-button-text">Cargando herramienta...</span>
-                                <input type="file" id="remove-bg-input" accept="image/png, image/jpeg" class="hidden" disabled/>
+                                <span id="remove-bg-button-text">Seleccionar Imagen</span>
+                                <input type="file" id="remove-bg-input" accept="image/png, image/jpeg" class="hidden"/>
                             </label>
                         </div>
                         <div id="remove-bg-loader" class="hidden my-4 text-center">
@@ -422,6 +423,7 @@
             const toolContents = document.querySelectorAll('.tool-content');
 
             // La función enterApp ya está definida globalmente arriba
+            // No es necesario redefinirla aquí
 
             window.showTool = function(toolId) {
                 homeScreen.classList.add('hidden');
@@ -442,15 +444,14 @@
                         signatureDataUrl = savedSignature;
                     }
                 }
-                 if (toolId === 'remove-bg') {
-                    initializeRemoveBgTool();
-                }
             }
 
             window.showHomeScreen = function() {
                 homeScreen.classList.remove('hidden');
                 toolContainer.classList.add('hidden');
-                resetSignPdfTool();
+                if (typeof resetSignPdfTool === 'function') {
+                    resetSignPdfTool();
+                }
             }
 
             // --- MODAL DE MENSAJES ---
@@ -459,13 +460,20 @@
             const modalCloseButton = document.getElementById('modal-close-button');
 
             function showMessage(message) {
-                modalMessage.textContent = message;
-                modal.style.display = "flex";
+                if (modalMessage && modal) {
+                    modalMessage.textContent = message;
+                    modal.style.display = "flex";
+                }
             }
 
-            modalCloseButton.onclick = function() {
-                modal.style.display = "none";
+            if (modalCloseButton) {
+                modalCloseButton.onclick = function() {
+                    if (modal) {
+                        modal.style.display = "none";
+                    }
+                }
             }
+            
             window.onclick = function(event) {
                 if (event.target == modal) {
                     modal.style.display = "none";
@@ -482,148 +490,154 @@
             const pdfToJpgLoader = document.getElementById('pdf-to-jpg-loader');
             const pdfToJpgFilename = document.getElementById('pdf-to-jpg-filename');
             
-            pdfToJpgInput.addEventListener('change', async (event) => {
-                const file = event.target.files[0];
-                if (!file) {
-                    pdfToJpgFilename.textContent = '';
-                    return;
-                }
-                pdfToJpgFilename.textContent = `Archivo seleccionado: ${file.name}`;
-                pdfToJpgOutput.innerHTML = '';
-                pdfToJpgLoader.classList.remove('hidden');
+            if (pdfToJpgInput) {
+                pdfToJpgInput.addEventListener('change', async (event) => {
+                    const file = event.target.files[0];
+                    if (!file) {
+                        if (pdfToJpgFilename) pdfToJpgFilename.textContent = '';
+                        return;
+                    }
+                    if (pdfToJpgFilename) pdfToJpgFilename.textContent = `Archivo seleccionado: ${file.name}`;
+                    if (pdfToJpgOutput) pdfToJpgOutput.innerHTML = '';
+                    if (pdfToJpgLoader) pdfToJpgLoader.classList.remove('hidden');
 
-                try {
-                    const fileReader = new FileReader();
-                    fileReader.onload = async (e) => {
-                        const typedarray = new Uint8Array(e.target.result);
-                        const pdf = await pdfjsLib.getDocument(typedarray).promise;
+                    try {
+                        const fileReader = new FileReader();
+                        fileReader.onload = async (e) => {
+                            const typedarray = new Uint8Array(e.target.result);
+                            const pdf = await pdfjsLib.getDocument(typedarray).promise;
 
-                        for (let i = 1; i <= pdf.numPages; i++) {
-                            const page = await pdf.getPage(i);
-                            const viewport = page.getViewport({ scale: 1.5 });
-                            const canvas = document.createElement('canvas');
-                            const context = canvas.getContext('2d');
-                            canvas.height = viewport.height;
-                            canvas.width = viewport.width;
+                            for (let i = 1; i <= pdf.numPages; i++) {
+                                const page = await pdf.getPage(i);
+                                const viewport = page.getViewport({ scale: 1.5 });
+                                const canvas = document.createElement('canvas');
+                                const context = canvas.getContext('2d');
+                                canvas.height = viewport.height;
+                                canvas.width = viewport.width;
 
-                            await page.render({ canvasContext: context, viewport: viewport }).promise;
-                            
-                            const img = document.createElement('a');
-                            img.href = canvas.toDataURL('image/jpeg');
-                            img.download = `${file.name.replace('.pdf', '')}-pagina-${i}.jpg`;
-                            img.innerHTML = `<img src="${img.href}" class="w-full h-auto rounded-lg shadow-md" alt="Página ${i}">`;
-                            pdfToJpgOutput.appendChild(img);
-                        }
-                        pdfToJpgLoader.classList.add('hidden');
-                    };
-                    fileReader.readAsArrayBuffer(file);
-                } catch (error) {
-                    console.error('Error al procesar el PDF:', error);
-                    showMessage('Error al procesar el PDF. Asegúrate de que es un archivo válido.');
-                    pdfToJpgLoader.classList.add('hidden');
-                }
-            });
+                                await page.render({ canvasContext: context, viewport: viewport }).promise;
+                                
+                                const img = document.createElement('a');
+                                img.href = canvas.toDataURL('image/jpeg');
+                                img.download = `${file.name.replace('.pdf', '')}-pagina-${i}.jpg`;
+                                img.innerHTML = `<img src="${img.href}" class="w-full h-auto rounded-lg shadow-md" alt="Página ${i}">`;
+                                if (pdfToJpgOutput) pdfToJpgOutput.appendChild(img);
+                            }
+                            if (pdfToJpgLoader) pdfToJpgLoader.classList.add('hidden');
+                        };
+                        fileReader.readAsArrayBuffer(file);
+                    } catch (error) {
+                        console.error('Error al procesar el PDF:', error);
+                        showMessage('Error al procesar el PDF. Asegúrate de que es un archivo válido.');
+                        if (pdfToJpgLoader) pdfToJpgLoader.classList.add('hidden');
+                    }
+                });
+            }
 
             // --- HERRAMIENTA 2: UNIR PDF ---
             const mergePdfInput = document.getElementById('merge-pdf-input');
             const mergePdfButton = document.getElementById('merge-pdf-button');
             const mergePdfList = document.getElementById('merge-pdf-list');
 
-            mergePdfInput.addEventListener('change', () => {
-                const files = mergePdfInput.files;
-                if (files.length > 1) {
-                    mergePdfButton.disabled = false;
-                    let fileNames = Array.from(files).map(f => f.name).join(', ');
-                    mergePdfList.textContent = `Archivos seleccionados (${files.length}): ${fileNames}`;
-                } else {
-                    mergePdfButton.disabled = true;
-                    mergePdfList.textContent = files.length === 1 ? 'Por favor, selecciona al menos 2 archivos.' : 'Ningún archivo seleccionado.';
-                }
-            });
-
-            mergePdfButton.addEventListener('click', async () => {
-                mergePdfButton.disabled = true;
-                mergePdfButton.textContent = 'Procesando...';
-                try {
-                    const mergedPdf = await PDFDocument.create();
-                    for (const file of mergePdfInput.files) {
-                        const arrayBuffer = await file.arrayBuffer();
-                        const pdf = await PDFDocument.load(arrayBuffer);
-                        const copiedPages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
-                        copiedPages.forEach((page) => mergedPdf.addPage(page));
+            if (mergePdfInput && mergePdfButton && mergePdfList) {
+                mergePdfInput.addEventListener('change', () => {
+                    const files = mergePdfInput.files;
+                    if (files.length > 1) {
+                        mergePdfButton.disabled = false;
+                        let fileNames = Array.from(files).map(f => f.name).join(', ');
+                        mergePdfList.textContent = `Archivos seleccionados (${files.length}): ${fileNames}`;
+                    } else {
+                        mergePdfButton.disabled = true;
+                        mergePdfList.textContent = files.length === 1 ? 'Por favor, selecciona al menos 2 archivos.' : 'Ningún archivo seleccionado.';
                     }
-                    const pdfBytes = await mergedPdf.save();
-                    const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-                    const link = document.createElement('a');
-                    link.href = URL.createObjectURL(blob);
-                    link.download = 'documento-unido.pdf';
-                    link.click();
-                    URL.revokeObjectURL(link.href);
-                } catch (error) {
-                    console.error('Error al unir los PDFs:', error);
-                    showMessage('Hubo un error al unir los PDFs. Inténtalo de nuevo.');
-                } finally {
-                    mergePdfButton.disabled = false;
-                    mergePdfButton.textContent = 'Unir y Descargar PDF';
-                }
-            });
+                });
+
+                mergePdfButton.addEventListener('click', async () => {
+                    mergePdfButton.disabled = true;
+                    mergePdfButton.textContent = 'Procesando...';
+                    try {
+                        const mergedPdf = await PDFDocument.create();
+                        for (const file of mergePdfInput.files) {
+                            const arrayBuffer = await file.arrayBuffer();
+                            const pdf = await PDFDocument.load(arrayBuffer);
+                            const copiedPages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
+                            copiedPages.forEach((page) => mergedPdf.addPage(page));
+                        }
+                        const pdfBytes = await mergedPdf.save();
+                        const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+                        const link = document.createElement('a');
+                        link.href = URL.createObjectURL(blob);
+                        link.download = 'documento-unido.pdf';
+                        link.click();
+                        URL.revokeObjectURL(link.href);
+                    } catch (error) {
+                        console.error('Error al unir los PDFs:', error);
+                        showMessage('Hubo un error al unir los PDFs. Inténtalo de nuevo.');
+                    } finally {
+                        mergePdfButton.disabled = false;
+                        mergePdfButton.textContent = 'Unir y Descargar PDF';
+                    }
+                });
+            }
 
             // --- HERRAMIENTA 3: IMAGEN a PDF ---
             const jpgToPdfInput = document.getElementById('jpg-to-pdf-input');
             const jpgToPdfButton = document.getElementById('jpg-to-pdf-button');
             const jpgToPdfList = document.getElementById('jpg-to-pdf-list');
 
-            jpgToPdfInput.addEventListener('change', () => {
-                const files = jpgToPdfInput.files;
-                if (files.length > 0) {
-                    jpgToPdfButton.disabled = false;
-                    let fileNames = Array.from(files).map(f => f.name).join(', ');
-                    jpgToPdfList.textContent = `Imágenes seleccionadas (${files.length}): ${fileNames}`;
-                } else {
-                    jpgToPdfButton.disabled = true;
-                    jpgToPdfList.textContent = 'Ninguna imagen seleccionada.';
-                }
-            });
-
-            jpgToPdfButton.addEventListener('click', async () => {
-                jpgToPdfButton.disabled = true;
-                jpgToPdfButton.textContent = 'Creando PDF...';
-                try {
-                    const pdfDoc = await PDFDocument.create();
-                    for (const file of jpgToPdfInput.files) {
-                         const arrayBuffer = await file.arrayBuffer();
-                         let image;
-                         if (file.type === 'image/jpeg') {
-                            image = await pdfDoc.embedJpg(arrayBuffer);
-                         } else if (file.type === 'image/png') {
-                            image = await pdfDoc.embedPng(arrayBuffer);
-                         } else {
-                            showMessage(`Formato de imagen no soportado: ${file.name}. Usa JPG o PNG.`);
-                            continue;
-                         }
-                        const page = pdfDoc.addPage([image.width, image.height]);
-                        page.drawImage(image, {
-                            x: 0,
-                            y: 0,
-                            width: image.width,
-                            height: image.height,
-                        });
+            if (jpgToPdfInput && jpgToPdfButton && jpgToPdfList) {
+                jpgToPdfInput.addEventListener('change', () => {
+                    const files = jpgToPdfInput.files;
+                    if (files.length > 0) {
+                        jpgToPdfButton.disabled = false;
+                        let fileNames = Array.from(files).map(f => f.name).join(', ');
+                        jpgToPdfList.textContent = `Imágenes seleccionadas (${files.length}): ${fileNames}`;
+                    } else {
+                        jpgToPdfButton.disabled = true;
+                        jpgToPdfList.textContent = 'Ninguna imagen seleccionada.';
                     }
-                    const pdfBytes = await pdfDoc.save();
-                    const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-                    const link = document.createElement('a');
-                    link.href = URL.createObjectURL(blob);
-                    link.download = 'convertido-desde-imagenes.pdf';
-                    link.click();
-                    URL.revokeObjectURL(link.href);
-                } catch (error) {
-                    console.error('Error al convertir imagen a PDF:', error);
-                    showMessage('Hubo un error al crear el PDF. Asegúrate de que todas las imágenes son válidas.');
-                } finally {
-                    jpgToPdfButton.disabled = false;
-                    jpgToPdfButton.textContent = 'Convertir y Descargar PDF';
-                }
-            });
+                });
+
+                jpgToPdfButton.addEventListener('click', async () => {
+                    jpgToPdfButton.disabled = true;
+                    jpgToPdfButton.textContent = 'Creando PDF...';
+                    try {
+                        const pdfDoc = await PDFDocument.create();
+                        for (const file of jpgToPdfInput.files) {
+                             const arrayBuffer = await file.arrayBuffer();
+                             let image;
+                             if (file.type === 'image/jpeg') {
+                                image = await pdfDoc.embedJpg(arrayBuffer);
+                             } else if (file.type === 'image/png') {
+                                image = await pdfDoc.embedPng(arrayBuffer);
+                             } else {
+                                showMessage(`Formato de imagen no soportado: ${file.name}. Usa JPG o PNG.`);
+                                continue;
+                             }
+                            const page = pdfDoc.addPage([image.width, image.height]);
+                            page.drawImage(image, {
+                                x: 0,
+                                y: 0,
+                                width: image.width,
+                                height: image.height,
+                            });
+                        }
+                        const pdfBytes = await pdfDoc.save();
+                        const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+                        const link = document.createElement('a');
+                        link.href = URL.createObjectURL(blob);
+                        link.download = 'convertido-desde-imagenes.pdf';
+                        link.click();
+                        URL.revokeObjectURL(link.href);
+                    } catch (error) {
+                        console.error('Error al convertir imagen a PDF:', error);
+                        showMessage('Hubo un error al crear el PDF. Asegúrate de que todas las imágenes son válidas.');
+                    } finally {
+                        jpgToPdfButton.disabled = false;
+                        jpgToPdfButton.textContent = 'Convertir y Descargar PDF';
+                    }
+                });
+            }
             
             // --- HERRAMIENTA 4: GENERADOR DE CONTRASEÑAS ---
             const passwordOutput = document.getElementById('password-output');
@@ -645,49 +659,59 @@
 
             window.generatePassword = function() {
                 let charset = '';
-                if (passUppercase.checked) charset += charSets.uppercase;
-                if (passLowercase.checked) charset += charSets.lowercase;
-                if (passNumbers.checked) charset += charSets.numbers;
-                if (passSymbols.checked) charset += charSets.symbols;
+                if (passUppercase && passUppercase.checked) charset += charSets.uppercase;
+                if (passLowercase && passLowercase.checked) charset += charSets.lowercase;
+                if (passNumbers && passNumbers.checked) charset += charSets.numbers;
+                if (passSymbols && passSymbols.checked) charset += charSets.symbols;
 
                 if (charset === '') {
                     showMessage('Por favor, selecciona al menos un tipo de carácter.');
-                    passwordOutput.textContent = '...';
+                    if (passwordOutput) passwordOutput.textContent = '...';
                     return;
                 }
 
                 let password = '';
-                const length = passLength.value;
+                const length = passLength ? passLength.value : 16;
                 for (let i = 0; i < length; i++) {
                     password += charset.charAt(Math.floor(Math.random() * charset.length));
                 }
-                passwordOutput.textContent = password;
+                if (passwordOutput) passwordOutput.textContent = password;
             }
             
-            passLength.addEventListener('input', (e) => {
-                passLengthValue.textContent = e.target.value;
-                generatePassword();
+            if (passLength && passLengthValue) {
+                passLength.addEventListener('input', (e) => {
+                    passLengthValue.textContent = e.target.value;
+                    generatePassword();
+                });
+            }
+            
+            if (generatePasswordButton) {
+                generatePasswordButton.addEventListener('click', generatePassword);
+            }
+            
+            [passUppercase, passLowercase, passNumbers, passSymbols].forEach(el => {
+                if (el) el.addEventListener('change', generatePassword);
             });
-            generatePasswordButton.addEventListener('click', generatePassword);
-            [passUppercase, passLowercase, passNumbers, passSymbols].forEach(el => el.addEventListener('change', generatePassword));
 
-            copyPasswordButton.addEventListener('click', () => {
-                const password = passwordOutput.textContent;
-                if (password && password !== '...') {
-                    const textArea = document.createElement("textarea");
-                    textArea.value = password;
-                    document.body.appendChild(textArea);
-                    textArea.focus();
-                    textArea.select();
-                    try {
-                        document.execCommand('copy');
-                        showMessage('¡Contraseña copiada!');
-                    } catch (err) {
-                        showMessage('No se pudo copiar la contraseña.');
+            if (copyPasswordButton) {
+                copyPasswordButton.addEventListener('click', () => {
+                    const password = passwordOutput ? passwordOutput.textContent : '';
+                    if (password && password !== '...') {
+                        const textArea = document.createElement("textarea");
+                        textArea.value = password;
+                        document.body.appendChild(textArea);
+                        textArea.focus();
+                        textArea.select();
+                        try {
+                            document.execCommand('copy');
+                            showMessage('¡Contraseña copiada!');
+                        } catch (err) {
+                            showMessage('No se pudo copiar la contraseña.');
+                        }
+                        document.body.removeChild(textArea);
                     }
-                    document.body.removeChild(textArea);
-                }
-            });
+                });
+            }
             
             generatePassword();
 
@@ -698,35 +722,42 @@
             const downloadQrLink = document.getElementById('download-qr-link');
 
             function generateQR() {
-                const text = qrInput.value;
+                const text = qrInput ? qrInput.value : '';
                 if (text.trim() === '') {
                     showMessage('Por favor, introduce texto o una URL para generar el QR.');
                     return;
                 }
-                QRCode.toCanvas(qrCanvas, text, { width: 256, errorCorrectionLevel: 'H' }, function (error) {
-                    if (error) {
-                        console.error(error);
-                        showMessage('No se pudo generar el código QR.');
-                    } else {
-                        downloadQrLink.href = qrCanvas.toDataURL('image/png');
-                        downloadQrLink.download = 'codigo-qr.png';
-                        downloadQrLink.classList.remove('hidden');
+                if (qrCanvas) {
+                    QRCode.toCanvas(qrCanvas, text, { width: 256, errorCorrectionLevel: 'H' }, function (error) {
+                        if (error) {
+                            console.error(error);
+                            showMessage('No se pudo generar el código QR.');
+                        } else {
+                            if (downloadQrLink) {
+                                downloadQrLink.href = qrCanvas.toDataURL('image/png');
+                                downloadQrLink.download = 'codigo-qr.png';
+                                downloadQrLink.classList.remove('hidden');
+                            }
+                        }
+                    });
+                }
+            }
+            
+            if (generateQrButton) {
+                generateQrButton.addEventListener('click', generateQR);
+            }
+            
+            if (qrInput) {
+                qrInput.addEventListener('keyup', (e) => {
+                    if (e.key === 'Enter') {
+                        generateQR();
                     }
                 });
             }
             
-            generateQrButton.addEventListener('click', generateQR);
-            qrInput.addEventListener('keyup', (e) => {
-                if (e.key === 'Enter') {
-                    generateQR();
-                }
-            });
-            
             // --- HERRAMIENTA 6: QUITAR FONDO DE IMAGEN ---
             const removeBgInput = document.getElementById('remove-bg-input');
-            const removeBgInitLoader = document.getElementById('remove-bg-init-loader');
-            const removeBgContent = document.getElementById('remove-bg-content');
-            const removeBgProcessLoader = document.getElementById('remove-bg-process-loader');
+            const removeBgLoader = document.getElementById('remove-bg-loader');
             const removeBgOutput = document.getElementById('remove-bg-output');
             const removeBgOriginal = document.getElementById('remove-bg-original');
             const removeBgResult = document.getElementById('remove-bg-result');
@@ -734,63 +765,66 @@
             
             let bgRemovalLibLoaded = false;
 
+            // Función simplificada para inicializar la herramienta de quitar fondo
             function initializeRemoveBgTool() {
-                if (bgRemovalLibLoaded) {
-                    removeBgInitLoader.classList.add('hidden');
-                    removeBgContent.classList.remove('hidden');
-                    return;
+                // Verificamos que los elementos existan antes de manipularlos
+                const removeBgButtonText = document.getElementById('remove-bg-button-text');
+                if (removeBgButtonText) {
+                    removeBgButtonText.textContent = 'Seleccionar Imagen';
                 }
-
-                removeBgInitLoader.classList.remove('hidden');
-                removeBgContent.classList.add('hidden');
-
-                const checkLibrary = () => {
-                    if (typeof bgRemoval !== 'undefined' && typeof bgRemoval.removeBackground === 'function') {
-                        bgRemovalLibLoaded = true;
-                        removeBgInitLoader.classList.add('hidden');
-                        removeBgContent.classList.remove('hidden');
-                    } else {
-                        setTimeout(checkLibrary, 200);
-                    }
-                };
-                checkLibrary();
+                if (removeBgInput) {
+                    removeBgInput.disabled = false;
+                }
+                
+                // Intentamos cargar la librería de fondo
+                if (typeof bgRemoval !== 'undefined' && typeof bgRemoval.removeBackground === 'function') {
+                    bgRemovalLibLoaded = true;
+                } else {
+                    // Si no está disponible, mostramos un mensaje
+                    console.warn('La librería de quitar fondo no está disponible');
+                }
             }
 
-            removeBgInput.addEventListener('change', async (event) => {
-                const file = event.target.files[0];
-                if (!file) return;
+            if (removeBgInput) {
+                removeBgInput.addEventListener('change', async (event) => {
+                    const file = event.target.files[0];
+                    if (!file) return;
 
-                if (!bgRemovalLibLoaded) {
-                    showMessage('La herramienta para quitar fondo todavía se está cargando. Por favor, espere un momento.');
-                    return;
-                }
-                
-                removeBgContent.classList.add('hidden');
-                removeBgProcessLoader.classList.remove('hidden');
-                removeBgOutput.classList.add('hidden');
-                removeBgDownload.classList.add('hidden');
-                
-                const originalUrl = URL.createObjectURL(file);
-                removeBgOriginal.src = originalUrl;
+                    // Mostrar loader
+                    if (removeBgLoader) removeBgLoader.classList.remove('hidden');
+                    if (removeBgOutput) removeBgOutput.classList.add('hidden');
+                    if (removeBgDownload) removeBgDownload.classList.add('hidden');
+                    
+                    const originalUrl = URL.createObjectURL(file);
+                    if (removeBgOriginal) removeBgOriginal.src = originalUrl;
 
-                try {
-                    const blob = await bgRemoval.removeBackground(file);
-                    const resultUrl = URL.createObjectURL(blob);
-                    removeBgResult.src = resultUrl;
-                    removeBgDownload.href = resultUrl;
-                    removeBgDownload.download = `${file.name.replace(/\.[^/.]+$/, "")}_sin_fondo.png`;
+                    try {
+                        // Verificar si la librería está disponible
+                        if (typeof bgRemoval !== 'undefined' && typeof bgRemoval.removeBackground === 'function') {
+                            const blob = await bgRemoval.removeBackground(file);
+                            const resultUrl = URL.createObjectURL(blob);
+                            if (removeBgResult) removeBgResult.src = resultUrl;
+                            if (removeBgDownload) {
+                                removeBgDownload.href = resultUrl;
+                                removeBgDownload.download = `${file.name.replace(/\.[^/.]+$/, "")}_sin_fondo.png`;
+                            }
 
-                    removeBgOutput.classList.remove('hidden');
-                    removeBgDownload.classList.remove('hidden');
-                } catch (error) {
-                    console.error('Error al quitar el fondo:', error);
-                    showMessage('Hubo un error al procesar la imagen. Inténtalo de nuevo.');
-                } finally {
-                    removeBgProcessLoader.classList.add('hidden');
-                    removeBgContent.classList.remove('hidden');
-                }
-            });
+                            if (removeBgOutput) removeBgOutput.classList.remove('hidden');
+                            if (removeBgDownload) removeBgDownload.classList.remove('hidden');
+                        } else {
+                            showMessage('La herramienta para quitar fondo no está disponible en este momento.');
+                        }
+                    } catch (error) {
+                        console.error('Error al quitar el fondo:', error);
+                        showMessage('Hubo un error al procesar la imagen. Inténtalo de nuevo.');
+                    } finally {
+                        if (removeBgLoader) removeBgLoader.classList.add('hidden');
+                    }
+                });
+            }
 
+            // Inicializamos la herramienta de quitar fondo inmediatamente
+            initializeRemoveBgTool();
 
             // --- HERRAMIENTA 7: COMPRIMIR IMAGEN ---
             const compressInput = document.getElementById('compress-image-input');
@@ -817,11 +851,11 @@
             async function compressAndDisplayImage() {
                 if (!originalImageFile) return;
 
-                compressLoader.classList.remove('hidden');
-                compressDownloadLink.classList.add('hidden');
+                if (compressLoader) compressLoader.classList.remove('hidden');
+                if (compressDownloadLink) compressDownloadLink.classList.add('hidden');
 
-                const quality = parseInt(compressQualitySlider.value) / 100;
-                compressQualityValue.textContent = compressQualitySlider.value;
+                const quality = compressQualitySlider ? parseInt(compressQualitySlider.value) / 100 : 0.75;
+                if (compressQualityValue) compressQualityValue.textContent = compressQualitySlider ? compressQualitySlider.value : '75';
                 
                 const image = new Image();
                 const imageURL = URL.createObjectURL(originalImageFile);
@@ -837,34 +871,40 @@
 
                 canvas.toBlob( (blob) => {
                     const compressedUrl = URL.createObjectURL(blob);
-                    compressResultImg.src = compressedUrl;
+                    if (compressResultImg) compressResultImg.src = compressedUrl;
                     
                     const sizeReduction = 100 - (blob.size / originalImageFile.size) * 100;
-                    compressResultSize.textContent = `${formatBytes(blob.size)} (${sizeReduction.toFixed(1)}% menos)`;
+                    if (compressResultSize) compressResultSize.textContent = `${formatBytes(blob.size)} (${sizeReduction.toFixed(1)}% menos)`;
 
-                    compressDownloadLink.href = compressedUrl;
-                    compressDownloadLink.download = `${originalImageFile.name.replace(/\.[^/.]+$/, "")}_comprimido.jpg`;
-                    compressDownloadLink.classList.remove('hidden');
-                    compressLoader.classList.add('hidden');
+                    if (compressDownloadLink) {
+                        compressDownloadLink.href = compressedUrl;
+                        compressDownloadLink.download = `${originalImageFile.name.replace(/\.[^/.]+$/, "")}_comprimido.jpg`;
+                        compressDownloadLink.classList.remove('hidden');
+                    }
+                    if (compressLoader) compressLoader.classList.add('hidden');
                 }, 'image/jpeg', quality);
             }
 
-            compressInput.addEventListener('change', async (event) => {
-                const file = event.target.files[0];
-                if (!file) {
-                    compressOutput.classList.add('hidden');
-                    return;
-                }
-                originalImageFile = file;
+            if (compressInput) {
+                compressInput.addEventListener('change', async (event) => {
+                    const file = event.target.files[0];
+                    if (!file) {
+                        if (compressOutput) compressOutput.classList.add('hidden');
+                        return;
+                    }
+                    originalImageFile = file;
 
-                compressOriginalImg.src = URL.createObjectURL(file);
-                compressOriginalSize.textContent = `Tamaño: ${formatBytes(file.size)}`;
-                compressOutput.classList.remove('hidden');
-                
-                await compressAndDisplayImage();
-            });
+                    if (compressOriginalImg) compressOriginalImg.src = URL.createObjectURL(file);
+                    if (compressOriginalSize) compressOriginalSize.textContent = `Tamaño: ${formatBytes(file.size)}`;
+                    if (compressOutput) compressOutput.classList.remove('hidden');
+                    
+                    await compressAndDisplayImage();
+                });
+            }
 
-            compressQualitySlider.addEventListener('input', compressAndDisplayImage);
+            if (compressQualitySlider) {
+                compressQualitySlider.addEventListener('input', compressAndDisplayImage);
+            }
 
             // --- HERRAMIENTA 8: RECORTAR AUDIO ---
             const trimAudioInput = document.getElementById('trim-audio-input');
@@ -884,115 +924,135 @@
             let trimmedWavBlob = null;
             let trimmedMp3Blob = null;
             
-            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            // Solo inicializar AudioContext si está disponible
+            let audioContext = null;
+            try {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            } catch (e) {
+                console.warn('AudioContext no está disponible:', e);
+            }
 
-            trimAudioInput.addEventListener('change', async (event) => {
-                const file = event.target.files[0];
-                if (!file) return;
+            if (trimAudioInput) {
+                trimAudioInput.addEventListener('change', async (event) => {
+                    const file = event.target.files[0];
+                    if (!file) return;
 
-                originalAudioFileName = file.name;
-                trimAudioLoaderText.textContent = "Procesando archivo...";
-                trimAudioLoader.classList.remove('hidden');
-                trimAudioControls.classList.add('hidden');
-                trimAudioOutput.classList.add('hidden');
-                
-                trimmedWavBlob = null;
-                trimmedMp3Blob = null;
+                    originalAudioFileName = file.name;
+                    if (trimAudioLoaderText) trimAudioLoaderText.textContent = "Procesando archivo...";
+                    if (trimAudioLoader) trimAudioLoader.classList.remove('hidden');
+                    if (trimAudioControls) trimAudioControls.classList.add('hidden');
+                    if (trimAudioOutput) trimAudioOutput.classList.add('hidden');
+                    
+                    trimmedWavBlob = null;
+                    trimmedMp3Blob = null;
 
-                const reader = new FileReader();
-                reader.onload = async (e) => {
+                    const reader = new FileReader();
+                    reader.onload = async (e) => {
+                        try {
+                            if (audioContext) {
+                                audioFileBuffer = await audioContext.decodeAudioData(e.target.result);
+                            }
+                            if (audioPlayer) audioPlayer.src = URL.createObjectURL(file);
+                            if (startTimeInput) startTimeInput.value = 0;
+                            if (endTimeInput) {
+                                endTimeInput.value = audioFileBuffer ? audioFileBuffer.duration.toFixed(2) : '10';
+                                if (audioFileBuffer) {
+                                    endTimeInput.max = audioFileBuffer.duration.toFixed(2);
+                                    if (startTimeInput) startTimeInput.max = audioFileBuffer.duration.toFixed(2);
+                                }
+                            }
+                            if (trimAudioControls) trimAudioControls.classList.remove('hidden');
+                        } catch (err) {
+                            console.error("Error decodificando el audio:", err);
+                            showMessage("No se pudo procesar el archivo. Asegúrate de que es un formato de audio válido.");
+                        } finally {
+                            if (trimAudioLoader) trimAudioLoader.classList.add('hidden');
+                        }
+                    };
+                    reader.readAsArrayBuffer(file);
+                });
+            }
+
+            if (trimAudioButton) {
+                trimAudioButton.addEventListener('click', async () => {
+                    if (!audioFileBuffer) {
+                        showMessage("Por favor, sube un archivo de audio primero.");
+                        return;
+                    }
+
+                    const startTime = startTimeInput ? parseFloat(startTimeInput.value) : 0;
+                    const endTime = endTimeInput ? parseFloat(endTimeInput.value) : 10;
+                    
+                    if (isNaN(startTime) || isNaN(endTime) || startTime < 0 || endTime <= startTime || (audioFileBuffer && endTime > audioFileBuffer.duration)) {
+                        showMessage("Tiempos de inicio/fin no válidos.");
+                        return;
+                    }
+
+                    if (trimAudioLoaderText) trimAudioLoaderText.textContent = "Recortando y codificando...";
+                    if (trimAudioLoader) trimAudioLoader.classList.remove('hidden');
+                    trimAudioButton.disabled = true;
+                    if (trimAudioOutput) trimAudioOutput.classList.add('hidden');
+
                     try {
-                        audioFileBuffer = await audioContext.decodeAudioData(e.target.result);
-                        audioPlayer.src = URL.createObjectURL(file);
-                        startTimeInput.value = 0;
-                        endTimeInput.value = audioFileBuffer.duration.toFixed(2);
-                        startTimeInput.max = audioFileBuffer.duration.toFixed(2);
-                        endTimeInput.max = audioFileBuffer.duration.toFixed(2);
-                        trimAudioControls.classList.remove('hidden');
-                    } catch (err) {
-                        console.error("Error decodificando el audio:", err);
-                        showMessage("No se pudo procesar el archivo. Asegúrate de que es un formato de audio válido.");
+                        const startOffset = Math.floor(startTime * audioFileBuffer.sampleRate);
+                        const endOffset = Math.floor(endTime * audioFileBuffer.sampleRate);
+                        const frameCount = endOffset - startOffset;
+
+                        const newBuffer = audioContext.createBuffer(
+                            audioFileBuffer.numberOfChannels,
+                            frameCount,
+                            audioFileBuffer.sampleRate
+                        );
+
+                        for (let i = 0; i < audioFileBuffer.numberOfChannels; i++) {
+                            newBuffer.getChannelData(i).set(audioFileBuffer.getChannelData(i).subarray(startOffset, endOffset));
+                        }
+                        
+                        trimmedWavBlob = bufferToWave(newBuffer);
+                        if (trimmedAudioPlayer) trimmedAudioPlayer.src = URL.createObjectURL(trimmedWavBlob);
+                        
+                        trimmedMp3Blob = null; 
+                        if (typeof lamejs !== 'undefined') {
+                            encodeToMp3(newBuffer).then(mp3Blob => {
+                                trimmedMp3Blob = mp3Blob;
+                            });
+                        }
+
+                        if (trimAudioOutput) trimAudioOutput.classList.remove('hidden');
+
+                    } catch(err) {
+                        console.error("Error al recortar el audio:", err);
+                        showMessage("Ocurrió un error durante el recorte.");
                     } finally {
-                        trimAudioLoader.classList.add('hidden');
+                        if (trimAudioLoader) trimAudioLoader.classList.add('hidden');
+                        trimAudioButton.disabled = false;
                     }
-                };
-                reader.readAsArrayBuffer(file);
-            });
+                });
+            }
 
-            trimAudioButton.addEventListener('click', async () => {
-                if (!audioFileBuffer) {
-                    showMessage("Por favor, sube un archivo de audio primero.");
-                    return;
-                }
+            if (downloadTrimmedAudio) {
+                downloadTrimmedAudio.addEventListener('click', () => {
+                    const formatInput = document.querySelector('input[name="audio-format"]:checked');
+                    const format = formatInput ? formatInput.value : 'wav';
+                    const blob = (format === 'mp3') ? trimmedMp3Blob : trimmedWavBlob;
+                    const extension = (format === 'mp3') ? 'mp3' : 'wav';
 
-                const startTime = parseFloat(startTimeInput.value);
-                const endTime = parseFloat(endTimeInput.value);
-                
-                if (isNaN(startTime) || isNaN(endTime) || startTime < 0 || endTime <= startTime || endTime > audioFileBuffer.duration) {
-                    showMessage("Tiempos de inicio/fin no válidos.");
-                    return;
-                }
-
-                trimAudioLoaderText.textContent = "Recortando y codificando...";
-                trimAudioLoader.classList.remove('hidden');
-                trimAudioButton.disabled = true;
-                trimAudioOutput.classList.add('hidden');
-
-                try {
-                    const startOffset = Math.floor(startTime * audioFileBuffer.sampleRate);
-                    const endOffset = Math.floor(endTime * audioFileBuffer.sampleRate);
-                    const frameCount = endOffset - startOffset;
-
-                    const newBuffer = audioContext.createBuffer(
-                        audioFileBuffer.numberOfChannels,
-                        frameCount,
-                        audioFileBuffer.sampleRate
-                    );
-
-                    for (let i = 0; i < audioFileBuffer.numberOfChannels; i++) {
-                        newBuffer.getChannelData(i).set(audioFileBuffer.getChannelData(i).subarray(startOffset, endOffset));
+                    if (!blob) {
+                        showMessage("Aún no se ha generado el archivo " + format.toUpperCase() + ". Por favor, espera un momento.");
+                        return;
                     }
-                    
-                    trimmedWavBlob = bufferToWave(newBuffer);
-                    trimmedAudioPlayer.src = URL.createObjectURL(trimmedWavBlob);
-                    
-                    trimmedMp3Blob = null; 
-                    encodeToMp3(newBuffer).then(mp3Blob => {
-                        trimmedMp3Blob = mp3Blob;
-                         console.log("MP3 encoding complete");
-                    });
 
-                    trimAudioOutput.classList.remove('hidden');
-
-                } catch(err) {
-                    console.error("Error al recortar el audio:", err);
-                    showMessage("Ocurrió un error durante el recorte.");
-                } finally {
-                    trimAudioLoader.classList.add('hidden');
-                    trimAudioButton.disabled = false;
-                }
-            });
-
-            downloadTrimmedAudio.addEventListener('click', () => {
-                const format = document.querySelector('input[name="audio-format"]:checked').value;
-                const blob = (format === 'mp3') ? trimmedMp3Blob : trimmedWavBlob;
-                const extension = (format === 'mp3') ? 'mp3' : 'wav';
-
-                if (!blob) {
-                    showMessage("Aún no se ha generado el archivo " + format.toUpperCase() + ". Por favor, espera un momento.");
-                    return;
-                }
-
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.style.display = 'none';
-                a.href = url;
-                a.download = `${originalAudioFileName.replace(/\.[^/.]+$/, "")}_recortado.${extension}`;
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-                document.body.removeChild(a);
-            });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.style.display = 'none';
+                    a.href = url;
+                    a.download = `${originalAudioFileName.replace(/\.[^/.]+$/, "")}_recortado.${extension}`;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                });
+            }
 
             function bufferToWave(abuffer) {
                 const numOfChan = abuffer.numberOfChannels;
@@ -1113,7 +1173,10 @@
             const redrawSignatureButton = document.getElementById('redraw-signature-button');
 
             const signatureCanvas = document.getElementById('signature-canvas');
-            const signatureCtx = signatureCanvas.getContext('2d');
+            let signatureCtx = null;
+            if (signatureCanvas) {
+                signatureCtx = signatureCanvas.getContext('2d');
+            }
             const clearSignatureButton = document.getElementById('clear-signature-button');
             const saveSignatureButton = document.getElementById('save-signature-button');
             
@@ -1133,6 +1196,8 @@
             };
 
             function setupSignatureCanvas() {
+                if (!signatureCanvas) return;
+                
                 const ratio = Math.max(window.devicePixelRatio || 1, 1);
                 const canvas = signatureCanvas;
                 // Ajusta el tamaño del canvas a su contenedor visible
@@ -1142,24 +1207,26 @@
                 // Ajusta la resolución del canvas para pantallas de alta densidad
                 canvas.width = canvas.offsetWidth * ratio;
                 canvas.height = canvas.offsetHeight * ratio;
-                canvas.getContext("2d").scale(ratio, ratio);
-                signatureCtx.clearRect(0, 0, canvas.width, canvas.height); 
+                if (signatureCtx) {
+                    signatureCtx.scale(ratio, ratio);
+                    signatureCtx.clearRect(0, 0, canvas.width, canvas.height);
+                }
             }
             
             function resetSignPdfTool() {
-                signPdfInput.value = '';
-                signPdfFilename.textContent = '';
-                pdfPagesContainer.innerHTML = '';
+                if (signPdfInput) signPdfInput.value = '';
+                if (signPdfFilename) signPdfFilename.textContent = '';
+                if (pdfPagesContainer) pdfPagesContainer.innerHTML = '';
                 originalPdfBytes = null;
                 signOriginalPdfName = '';
-                signStep1.classList.remove('hidden');
-                signStep2.classList.add('hidden');
-                signStep3.classList.add('hidden');
+                if (signStep1) signStep1.classList.remove('hidden');
+                if (signStep2) signStep2.classList.add('hidden');
+                if (signStep3) signStep3.classList.add('hidden');
                 if(activeSignature.element) {
                     activeSignature.element.remove();
                     activeSignature.element = null;
                 }
-                signatureCtx.clearRect(0, 0, signatureCanvas.width, signatureCanvas.height);
+                if (signatureCtx) signatureCtx.clearRect(0, 0, signatureCanvas.width, signatureCanvas.height);
             }
             
             function getEventPos(canvas, evt) {
@@ -1179,7 +1246,7 @@
             }
 
             function draw(e) {
-                if (!isDrawing) return;
+                if (!isDrawing || !signatureCtx) return;
                 e.preventDefault();
                 const pos = getEventPos(signatureCanvas, e);
                 signatureCtx.strokeStyle = '#000';
@@ -1196,25 +1263,29 @@
                 isDrawing = false;
             }
 
-            signatureCanvas.addEventListener('mousedown', startDrawing);
-            signatureCanvas.addEventListener('mousemove', draw);
-            signatureCanvas.addEventListener('mouseup', stopDrawing);
-            signatureCanvas.addEventListener('mouseleave', stopDrawing);
-            
-            signatureCanvas.addEventListener('touchstart', (e) => { e.preventDefault(); startDrawing(e); });
-            signatureCanvas.addEventListener('touchmove', (e) => { e.preventDefault(); draw(e); });
-            signatureCanvas.addEventListener('touchend', stopDrawing);
+            if (signatureCanvas) {
+                signatureCanvas.addEventListener('mousedown', startDrawing);
+                signatureCanvas.addEventListener('mousemove', draw);
+                signatureCanvas.addEventListener('mouseup', stopDrawing);
+                signatureCanvas.addEventListener('mouseleave', stopDrawing);
+                
+                signatureCanvas.addEventListener('touchstart', (e) => { e.preventDefault(); startDrawing(e); });
+                signatureCanvas.addEventListener('touchmove', (e) => { e.preventDefault(); draw(e); });
+                signatureCanvas.addEventListener('touchend', stopDrawing);
+            }
 
-            clearSignatureButton.addEventListener('click', () => {
-                signatureCtx.clearRect(0, 0, signatureCanvas.width, signatureCanvas.height);
-            });
+            if (clearSignatureButton) {
+                clearSignatureButton.addEventListener('click', () => {
+                    if (signatureCtx) signatureCtx.clearRect(0, 0, signatureCanvas.width, signatureCanvas.height);
+                });
+            }
 
             async function renderPdfPagesForSigning() {
-                if (!originalPdfBytes) return;
+                if (!originalPdfBytes || !pdfPagesContainer) return;
 
                 pdfPagesContainer.innerHTML = '';
-                signPdfLoaderText.textContent = 'Cargando previsualización del PDF...';
-                signPdfLoader.classList.remove('hidden');
+                if (signPdfLoaderText) signPdfLoaderText.textContent = 'Cargando previsualización del PDF...';
+                if (signPdfLoader) signPdfLoader.classList.remove('hidden');
 
                 try {
                     const typedarray = new Uint8Array(originalPdfBytes);
@@ -1250,74 +1321,82 @@
                     showMessage("Error al renderizar el PDF.");
                     console.error(e);
                 } finally {
-                    signPdfLoader.classList.add('hidden');
+                    if (signPdfLoader) signPdfLoader.classList.add('hidden');
                 }
             }
             
-            saveSignatureButton.addEventListener('click', async () => {
-                const isEmpty = !signatureCtx.getImageData(0,0,signatureCanvas.width, signatureCanvas.height).data.some(channel => channel !== 0);
-                if (isEmpty) {
-                    showMessage("Por favor, dibuja una firma antes de guardar.");
-                    return;
-                }
-                signatureDataUrl = signatureCanvas.toDataURL('image/png');
-                sessionStorage.setItem('rrtools_signature', signatureDataUrl); // Guardar en la sesión
-                signStep2.classList.add('hidden');
-                signStep3.classList.remove('hidden');
-                await renderPdfPagesForSigning();
-            });
+            if (saveSignatureButton) {
+                saveSignatureButton.addEventListener('click', async () => {
+                    if (!signatureCtx) return;
+                    
+                    const isEmpty = !signatureCtx.getImageData(0,0,signatureCanvas.width, signatureCanvas.height).data.some(channel => channel !== 0);
+                    if (isEmpty) {
+                        showMessage("Por favor, dibuja una firma antes de guardar.");
+                        return;
+                    }
+                    signatureDataUrl = signatureCanvas.toDataURL('image/png');
+                    sessionStorage.setItem('rrtools_signature', signatureDataUrl); // Guardar en la sesión
+                    if (signStep2) signStep2.classList.add('hidden');
+                    if (signStep3) signStep3.classList.remove('hidden');
+                    await renderPdfPagesForSigning();
+                });
+            }
             
-            signPdfInput.addEventListener('change', async (event) => {
-                const file = event.target.files[0];
-                if (!file) return;
-                
-                resetSignPdfTool();
-                signOriginalPdfName = file.name;
-                signPdfFilename.textContent = `Archivo: ${file.name}`;
-                
-                const savedSignature = sessionStorage.getItem('rrtools_signature');
-                if (savedSignature) {
-                    signatureDataUrl = savedSignature;
-                }
-
-                try {
-                    const fileReader = new FileReader();
-                    fileReader.readAsArrayBuffer(file);
-                    fileReader.onload = async (e) => {
-                        originalPdfBytes = e.target.result;
-                        signStep1.classList.add('hidden');
-
-                        if (signatureDataUrl) {
-                            signStep3.classList.remove('hidden');
-                            await renderPdfPagesForSigning();
-                        } else {
-                            signStep2.classList.remove('hidden');
-                            setTimeout(setupSignatureCanvas, 50); 
-                        }
-                    };
-                } catch(e) {
-                    showMessage("Error al cargar el archivo PDF.");
-                    console.error(e);
+            if (signPdfInput) {
+                signPdfInput.addEventListener('change', async (event) => {
+                    const file = event.target.files[0];
+                    if (!file) return;
+                    
                     resetSignPdfTool();
-                }
-            });
+                    signOriginalPdfName = file.name;
+                    if (signPdfFilename) signPdfFilename.textContent = `Archivo: ${file.name}`;
+                    
+                    const savedSignature = sessionStorage.getItem('rrtools_signature');
+                    if (savedSignature) {
+                        signatureDataUrl = savedSignature;
+                    }
 
-            redrawSignatureButton.addEventListener('click', () => {
-                signStep3.classList.add('hidden');
-                signStep2.classList.remove('hidden');
-                if (activeSignature.element) {
-                    activeSignature.element.remove();
-                    activeSignature.element = null;
-                }
-                signatureDataUrl = null;
-                sessionStorage.removeItem('rrtools_signature');
-                setTimeout(setupSignatureCanvas, 50);
-            });
+                    try {
+                        const fileReader = new FileReader();
+                        fileReader.readAsArrayBuffer(file);
+                        fileReader.onload = async (e) => {
+                            originalPdfBytes = e.target.result;
+                            if (signStep1) signStep1.classList.add('hidden');
+
+                            if (signatureDataUrl) {
+                                if (signStep3) signStep3.classList.remove('hidden');
+                                await renderPdfPagesForSigning();
+                            } else {
+                                if (signStep2) signStep2.classList.remove('hidden');
+                                setTimeout(setupSignatureCanvas, 50); 
+                            }
+                        };
+                    } catch(e) {
+                        showMessage("Error al cargar el archivo PDF.");
+                        console.error(e);
+                        resetSignPdfTool();
+                    }
+                });
+            }
+
+            if (redrawSignatureButton) {
+                redrawSignatureButton.addEventListener('click', () => {
+                    if (signStep3) signStep3.classList.add('hidden');
+                    if (signStep2) signStep2.classList.remove('hidden');
+                    if (activeSignature.element) {
+                        activeSignature.element.remove();
+                        activeSignature.element = null;
+                    }
+                    signatureDataUrl = null;
+                    sessionStorage.removeItem('rrtools_signature');
+                    setTimeout(setupSignatureCanvas, 50);
+                });
+            }
 
             function placeSignature(clickX, clickY, targetCanvas) {
-                if (!signatureDataUrl) {
+                if (!signatureDataUrl || !pdfPagesContainer) {
                     showMessage("Error: No se ha encontrado la firma. Por favor, dibújala de nuevo.");
-                    redrawSignatureButton.click();
+                    if (redrawSignatureButton) redrawSignatureButton.click();
                     return;
                 }
 
@@ -1422,63 +1501,65 @@
                 resizeHandle.addEventListener('mousedown', resizeStart);
                 resizeHandle.addEventListener('touchstart', resizeStart, { passive: false });
 
-                applySignatureButton.classList.remove('hidden');
+                if (applySignatureButton) applySignatureButton.classList.remove('hidden');
             }
             
-            applySignatureButton.addEventListener('click', async () => {
-                if (!activeSignature.element || !activeSignature.page) {
-                    showMessage("Por favor, coloca la firma en el documento primero.");
-                    return;
-                }
+            if (applySignatureButton) {
+                applySignatureButton.addEventListener('click', async () => {
+                    if (!activeSignature.element || !activeSignature.page) {
+                        showMessage("Por favor, coloca la firma en el documento primero.");
+                        return;
+                    }
 
-                signPdfLoaderText.textContent = 'Aplicando firma y generando PDF...';
-                signPdfLoader.classList.remove('hidden');
-                applySignatureButton.disabled = true;
+                    if (signPdfLoaderText) signPdfLoaderText.textContent = 'Aplicando firma y generando PDF...';
+                    if (signPdfLoader) signPdfLoader.classList.remove('hidden');
+                    applySignatureButton.disabled = true;
 
-                try {
-                    const targetCanvas = activeSignature.page;
-                    const targetPageNum = parseInt(targetCanvas.dataset.pageNumber) - 1;
-                    
-                    const pdfDoc = await PDFDocument.load(originalPdfBytes);
-                    const pdfPage = pdfDoc.getPages()[targetPageNum];
-                    const signatureImage = await pdfDoc.embedPng(signatureDataUrl);
+                    try {
+                        const targetCanvas = activeSignature.page;
+                        const targetPageNum = parseInt(targetCanvas.dataset.pageNumber) - 1;
+                        
+                        const pdfDoc = await PDFDocument.load(originalPdfBytes);
+                        const pdfPage = pdfDoc.getPages()[targetPageNum];
+                        const signatureImage = await pdfDoc.embedPng(signatureDataUrl);
 
-                    const { width: pageWidth, height: pageHeight } = pdfPage.getSize();
-                    const scale = pageWidth / targetCanvas.width;
-                    
-                    const sigFinalX = (activeSignature.element.offsetLeft - targetCanvas.offsetLeft) * scale;
-                    const sigFinalY = pageHeight - ((activeSignature.element.offsetTop - targetCanvas.offsetTop) * scale) - (activeSignature.element.offsetHeight * scale);
-                    const sigFinalWidth = activeSignature.element.offsetWidth * scale;
-                    const sigFinalHeight = activeSignature.element.offsetHeight * scale;
+                        const { width: pageWidth, height: pageHeight } = pdfPage.getSize();
+                        const scale = pageWidth / targetCanvas.width;
+                        
+                        const sigFinalX = (activeSignature.element.offsetLeft - targetCanvas.offsetLeft) * scale;
+                        const sigFinalY = pageHeight - ((activeSignature.element.offsetTop - targetCanvas.offsetTop) * scale) - (activeSignature.element.offsetHeight * scale);
+                        const sigFinalWidth = activeSignature.element.offsetWidth * scale;
+                        const sigFinalHeight = activeSignature.element.offsetHeight * scale;
 
-                    pdfPage.drawImage(signatureImage, {
-                        x: sigFinalX,
-                        y: sigFinalY,
-                        width: sigFinalWidth,
-                        height: sigFinalHeight,
-                    });
+                        pdfPage.drawImage(signatureImage, {
+                            x: sigFinalX,
+                            y: sigFinalY,
+                            width: sigFinalWidth,
+                            height: sigFinalHeight,
+                        });
 
-                    const pdfBytes = await pdfDoc.save();
-                    const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-                    const link = document.createElement('a');
-                    link.href = URL.createObjectURL(blob);
-                    link.download = `${signOriginalPdfName.replace(/\.[^/.]+$/, "")}_firmado.pdf`;
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                    URL.revokeObjectURL(link.href);
-                    
-                    showMessage("¡PDF firmado y descargado con éxito!");
-                    resetSignPdfTool();
+                        const pdfBytes = await pdfDoc.save();
+                        const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+                        const link = document.createElement('a');
+                        link.href = URL.createObjectURL(blob);
+                        link.download = `${signOriginalPdfName.replace(/\.[^/.]+$/, "")}_firmado.pdf`;
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                        URL.revokeObjectURL(link.href);
+                        
+                        showMessage("¡PDF firmado y descargado con éxito!");
+                        resetSignPdfTool();
 
-                } catch (err) {
-                    console.error("Error al aplicar la firma:", err);
-                    showMessage("Ocurrió un error al aplicar la firma.");
-                } finally {
-                    signPdfLoader.classList.add('hidden');
-                    applySignatureButton.disabled = false;
-                }
-            });
+                    } catch (err) {
+                        console.error("Error al aplicar la firma:", err);
+                        showMessage("Ocurrió un error al aplicar la firma.");
+                    } finally {
+                        if (signPdfLoader) signPdfLoader.classList.add('hidden');
+                        applySignatureButton.disabled = false;
+                    }
+                });
+            }
         });
     </script>
 </body>
