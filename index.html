@@ -264,18 +264,25 @@
                 <div id="remove-bg" class="tool-content hidden bg-white p-8 rounded-lg shadow-lg">
                     <h2 class="text-3xl font-bold mb-6 text-center">Quitar Fondo de Imagen</h2>
                     <div class="max-w-xl mx-auto text-center">
-                        <div id="remove-bg-status">
-                             <label id="remove-bg-label" class="w-full inline-block cursor-pointer rounded-lg bg-purple-500 px-4 py-3 text-center font-bold text-white hover:bg-purple-600">
+                        <div id="remove-bg-init-loader" class="my-4 text-center">
+                             <svg class="animate-spin h-8 w-8 text-purple-600 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <p class="mt-2 text-gray-600">Cargando herramienta...</p>
+                        </div>
+                        <div id="remove-bg-content" class="hidden">
+                            <label class="w-full inline-block cursor-pointer rounded-lg bg-purple-500 px-4 py-3 text-center font-bold text-white hover:bg-purple-600">
                                 <span>Seleccionar Imagen</span>
                                 <input type="file" id="remove-bg-input" accept="image/png, image/jpeg" class="hidden"/>
                             </label>
                         </div>
-                        <div id="remove-bg-loader" class="hidden my-4 text-center">
+                        <div id="remove-bg-process-loader" class="hidden my-4 text-center">
                             <svg class="animate-spin h-8 w-8 text-purple-600 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                             </svg>
-                            <p id="remove-bg-loader-text" class="mt-2 text-gray-600"></p>
+                            <p id="remove-bg-loader-text" class="mt-2 text-gray-600">Eliminando fondo...</p>
                         </div>
                         <div id="remove-bg-output" class="hidden mt-6 grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
                             <div>
@@ -470,6 +477,9 @@
                     if (savedSignature) {
                         signatureDataUrl = savedSignature;
                     }
+                }
+                 if (toolId === 'remove-bg') {
+                    initializeRemoveBgTool();
                 }
             }
 
@@ -750,26 +760,50 @@
             
             // --- HERRAMIENTA 6: QUITAR FONDO DE IMAGEN ---
             const removeBgInput = document.getElementById('remove-bg-input');
-            const removeBgLoader = document.getElementById('remove-bg-loader');
+            const removeBgInitLoader = document.getElementById('remove-bg-init-loader');
+            const removeBgContent = document.getElementById('remove-bg-content');
+            const removeBgProcessLoader = document.getElementById('remove-bg-process-loader');
             const removeBgLoaderText = document.getElementById('remove-bg-loader-text');
             const removeBgOutput = document.getElementById('remove-bg-output');
             const removeBgOriginal = document.getElementById('remove-bg-original');
             const removeBgResult = document.getElementById('remove-bg-result');
             const removeBgDownload = document.getElementById('remove-bg-download');
-            const removeBgStatus = document.getElementById('remove-bg-status');
+            
+            function initializeRemoveBgTool() {
+                if (typeof bgRemoval !== 'undefined' && typeof bgRemoval.removeBackground === 'function') {
+                    removeBgInitLoader.classList.add('hidden');
+                    removeBgContent.classList.remove('hidden');
+                    return;
+                }
+                
+                removeBgInitLoader.classList.remove('hidden');
+                removeBgContent.classList.add('hidden');
+
+                let checks = 0;
+                const maxChecks = 100; // 10 seconds timeout
+
+                const checkInterval = setInterval(() => {
+                    checks++;
+                    if (typeof bgRemoval !== 'undefined' && typeof bgRemoval.removeBackground === 'function') {
+                        clearInterval(checkInterval);
+                        removeBgInitLoader.classList.add('hidden');
+                        removeBgContent.classList.remove('hidden');
+                        console.log("Herramienta Quitar Fondo cargada con éxito.");
+                    } else if (checks > maxChecks) {
+                        clearInterval(checkInterval);
+                        removeBgInitLoader.querySelector('p').textContent = "Error al cargar la herramienta.";
+                        showMessage('No se pudo cargar la herramienta para quitar fondo. Revisa tu conexión a internet y recarga la página.');
+                    }
+                }, 100);
+            }
+
 
             removeBgInput.addEventListener('change', async (event) => {
                 const file = event.target.files[0];
                 if (!file) return;
 
-                if (typeof bgRemoval === 'undefined' || typeof bgRemoval.removeBackground !== 'function') {
-                    showMessage('La herramienta para quitar fondo no está disponible. Revisa tu conexión a internet y recarga la página.');
-                    return;
-                }
-                
-                removeBgStatus.classList.add('hidden');
-                removeBgLoaderText.textContent = "Eliminando fondo... Esto puede tardar unos segundos.";
-                removeBgLoader.classList.remove('hidden');
+                removeBgContent.classList.add('hidden');
+                removeBgProcessLoader.classList.remove('hidden');
                 removeBgOutput.classList.add('hidden');
                 removeBgDownload.classList.add('hidden');
                 
@@ -789,8 +823,8 @@
                     console.error('Error al quitar el fondo:', error);
                     showMessage('Hubo un error al procesar la imagen. Inténtalo de nuevo.');
                 } finally {
-                    removeBgLoader.classList.add('hidden');
-                    removeBgStatus.classList.remove('hidden');
+                    removeBgProcessLoader.classList.add('hidden');
+                    removeBgContent.classList.remove('hidden');
                 }
             });
 
@@ -1137,12 +1171,15 @@
             function setupSignatureCanvas() {
                 const ratio = Math.max(window.devicePixelRatio || 1, 1);
                 const canvas = signatureCanvas;
+                // Ajusta el tamaño del canvas a su contenedor visible
                 const parentWidth = canvas.parentElement.offsetWidth;
                 canvas.style.width = '100%';
                 canvas.style.height = `${parentWidth / 2}px`;
+                // Ajusta la resolución del canvas para pantallas de alta densidad
                 canvas.width = canvas.offsetWidth * ratio;
                 canvas.height = canvas.offsetHeight * ratio;
                 canvas.getContext("2d").scale(ratio, ratio);
+                signatureCtx.clearRect(0, 0, canvas.width, canvas.height); // Limpiar al reajustar
             }
             
             function resetSignPdfTool() {
@@ -1291,7 +1328,7 @@
                             await renderPdfPagesForSigning();
                         } else {
                             signStep2.classList.remove('hidden');
-                            setTimeout(setupSignatureCanvas, 0);
+                            setTimeout(setupSignatureCanvas, 50); // Pequeño delay para asegurar que el div es visible
                         }
                     };
                 } catch(e) {
@@ -1310,7 +1347,7 @@
                 }
                 signatureDataUrl = null;
                 sessionStorage.removeItem('rrtools_signature');
-                setTimeout(setupSignatureCanvas, 0);
+                setTimeout(setupSignatureCanvas, 50);
             });
 
             function placeSignature(clickX, clickY, targetCanvas) {
@@ -1424,7 +1461,6 @@
                 applySignatureButton.classList.remove('hidden');
             }
             
-
             applySignatureButton.addEventListener('click', async () => {
                 if (!activeSignature.element || !activeSignature.page) {
                     showMessage("Por favor, coloca la firma en el documento primero.");
