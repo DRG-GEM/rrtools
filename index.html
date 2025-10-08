@@ -6,79 +6,31 @@
     <title>RR Tools</title>
     <!-- Favicon desde GitHub -->
     <link rel="icon" type="image/png" href="https://github.com/DRG-GEM/rrtools/blob/main/rrtools.png?raw=true">
+    
+    <!-- Scripts de Estilos y Librerías -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.min.js"></script>
     <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
-    <!-- CDN para la herramienta de quitar fondo (con 'defer' para no bloquear la carga inicial) -->
-    <script src="https://cdn.jsdelivr.net/npm/@imgly/background-removal@latest/dist/browser.js" defer></script>
+    <!-- CDN para la herramienta de quitar fondo -->
+    <script src="https://cdn.jsdelivr.net/npm/@imgly/background-removal@latest/dist/browser.js"></script>
     <!-- CDN para codificar MP3 -->
     <script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js"></script>
+    
     <style>
-        body {
-            font-family: 'Inter', sans-serif;
-        }
-        .tool-card {
-            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-        }
-        .tool-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-        }
-        .modal {
-            display: none; 
-            position: fixed; z-index: 50; left: 0; top: 0;
-            width: 100%; height: 100%;
-            overflow: auto;
-            background-color: rgba(0,0,0,0.5);
-            justify-content: center;
-            align-items: center;
-        }
-        .modal-content {
-            background-color: #fefefe; margin: auto; padding: 20px;
-            border: 1px solid #888; width: 80%; max-width: 500px;
-            border-radius: 10px; text-align: center;
-        }
-        .modal-close {
-            color: #aaa; float: right; font-size: 28px;
-            font-weight: bold; cursor: pointer;
-        }
-        #signature-canvas {
-            border: 2px dashed #ccc;
-            border-radius: 0.5rem;
-            cursor: crosshair;
-            touch-action: none; /* Evita el scroll mientras se dibuja en móvil */
-        }
-        #pdf-pages-container {
-            position: relative;
-        }
-        .pdf-page-canvas {
-            border: 1px solid #e2e8f0;
-            margin-bottom: 1rem;
-        }
-        #draggable-signature {
-            position: absolute;
-            cursor: move;
-            border: 1px dashed #0ea5e9;
-            z-index: 10;
-        }
-        #draggable-signature img {
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-        }
-        #resize-handle {
-            position: absolute;
-            bottom: -5px;
-            right: -5px;
-            width: 10px;
-            height: 10px;
-            background-color: #0ea5e9;
-            border: 1px solid white;
-            border-radius: 50%;
-            cursor: se-resize;
-        }
+        body { font-family: 'Inter', sans-serif; }
+        .tool-card { transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out; }
+        .tool-card:hover { transform: translateY(-5px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); }
+        .modal { display: none; position: fixed; z-index: 50; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5); justify-content: center; align-items: center; }
+        .modal-content { background-color: #fefefe; margin: auto; padding: 20px; border: 1px solid #888; width: 90%; max-width: 500px; border-radius: 10px; text-align: center; }
+        .modal-close { color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer; }
+        #signature-canvas { border: 2px dashed #ccc; border-radius: 0.5rem; cursor: crosshair; touch-action: none; }
+        #pdf-pages-container { position: relative; }
+        .pdf-page-canvas { border: 1px solid #e2e8f0; margin-bottom: 1rem; }
+        #draggable-signature { position: absolute; cursor: move; border: 1px dashed #0ea5e9; z-index: 10; }
+        #draggable-signature img { width: 100%; height: 100%; pointer-events: none; }
+        #resize-handle { position: absolute; bottom: -5px; right: -5px; width: 10px; height: 10px; background-color: #0ea5e9; border: 1px solid white; border-radius: 50%; cursor: se-resize; }
     </style>
 </head>
 <body class="bg-gray-100 text-gray-800">
@@ -133,7 +85,7 @@
                     </div>
                     <!-- Generador de QR -->
                     <div onclick="showTool('qr-generator')" class="tool-card bg-white p-6 rounded-lg shadow-md cursor-pointer flex flex-col items-center text-center">
-                        <svg class="w-16 h-16 mb-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 5h1m-6.465 6.465l.707.707M4 12H3m14.071 7.071l-.707-.707M5.635 5.636l-.707-.707M12 20v-1m-6.365-6.364l.707-.707M21 12h-1M6.929 18.364l.707.707"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8v8H8V8h8z"></path></svg>
+                        <svg class="w-16 h-16 mb-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 5h1m-6.465 6.465l.707.707M4 12H3m14.071 7.071l-.707-.707M5.635 5.636l-.707-.707M12 20v-1m-6.365-6.364l.707-.707M21 12h-1M6.929 18.364l.707.707M16 8v8H8V8h8z"></path></svg>
                         <h2 class="text-xl font-semibold mb-2">Generador de QR</h2>
                         <p class="text-gray-500">Convierte texto o enlaces en un código QR.</p>
                     </div>
@@ -270,12 +222,12 @@
                 <div id="remove-bg" class="tool-content hidden bg-white p-8 rounded-lg shadow-lg">
                     <h2 class="text-3xl font-bold mb-6 text-center">Quitar Fondo de Imagen</h2>
                     <div class="max-w-xl mx-auto text-center">
-                        <div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4" role="alert">
-                            <p class="font-bold">Nota</p>
-                            <p>Esta herramienta funciona mejor con imágenes donde el objeto principal tiene un buen contraste con el fondo.</p>
+                         <div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4" role="alert">
+                          <p class="font-bold">Nota</p>
+                          <p>Los mejores resultados se obtienen con imágenes donde el objeto principal está bien definido y contrastado con el fondo.</p>
                         </div>
                         <div id="remove-bg-controls">
-                            <label id="remove-bg-label" class="w-full inline-block cursor-pointer rounded-lg bg-purple-500 px-4 py-3 text-center font-bold text-white hover:bg-purple-600 disabled:opacity-50 disabled:cursor-not-allowed">
+                            <label id="remove-bg-label" class="w-full inline-block cursor-pointer rounded-lg bg-purple-500 px-4 py-3 text-center font-bold text-white hover:bg-purple-600 disabled:bg-gray-400">
                                 <span id="remove-bg-button-text">Cargando herramienta...</span>
                                 <input type="file" id="remove-bg-input" accept="image/png, image/jpeg" class="hidden" disabled/>
                             </label>
@@ -450,6 +402,17 @@
     </div>
 
     <script>
+        // --- FUNCIÓN GLOBAL PARA ENTRAR A LA APP ---
+        window.enterApp = function() {
+            const welcomeScreen = document.getElementById('welcome-screen');
+            const mainContent = document.getElementById('main-content');
+            
+            if (welcomeScreen && mainContent) {
+                welcomeScreen.classList.add('hidden');
+                mainContent.classList.remove('hidden');
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             // --- NAVEGACIÓN ---
             const welcomeScreen = document.getElementById('welcome-screen');
@@ -458,10 +421,7 @@
             const toolContainer = document.getElementById('tool-container');
             const toolContents = document.querySelectorAll('.tool-content');
 
-            window.enterApp = function() {
-                welcomeScreen.classList.add('hidden');
-                mainContent.classList.remove('hidden');
-            }
+            // La función enterApp ya está definida globalmente arriba
 
             window.showTool = function(toolId) {
                 homeScreen.classList.add('hidden');
@@ -476,6 +436,7 @@
                     generatePassword();
                 }
                 if (toolId === 'sign-pdf') {
+                    // Cargar firma guardada al entrar en la herramienta
                     const savedSignature = sessionStorage.getItem('rrtools_signature');
                     if (savedSignature) {
                         signatureDataUrl = savedSignature;
@@ -771,42 +732,36 @@
             const removeBgResult = document.getElementById('remove-bg-result');
             const removeBgDownload = document.getElementById('remove-bg-download');
             
+            let bgRemovalLibLoaded = false;
+
             function initializeRemoveBgTool() {
-                // Si la librería ya está cargada, muestra el contenido.
-                if (typeof bgRemoval !== 'undefined' && typeof bgRemoval.removeBackground === 'function') {
+                if (bgRemovalLibLoaded) {
                     removeBgInitLoader.classList.add('hidden');
                     removeBgContent.classList.remove('hidden');
-                } else {
-                    // Si no, muestra el loader y empieza a comprobar.
-                    removeBgInitLoader.classList.remove('hidden');
-                    removeBgContent.classList.add('hidden');
-
-                    let checks = 0;
-                    const maxChecks = 50; // 5 segundos de timeout
-
-                    const checkInterval = setInterval(() => {
-                        checks++;
-                        // Comprueba si la librería ya está disponible en el objeto window
-                        if (typeof bgRemoval !== 'undefined' && typeof bgRemoval.removeBackground === 'function') {
-                            clearInterval(checkInterval);
-                            removeBgInitLoader.classList.add('hidden');
-                            removeBgContent.classList.remove('hidden');
-                            console.log("Herramienta Quitar Fondo cargada con éxito.");
-                        } else if (checks > maxChecks) {
-                            clearInterval(checkInterval);
-                            removeBgInitLoader.querySelector('p').textContent = "Error al cargar la herramienta.";
-                            showMessage('No se pudo cargar la herramienta para quitar fondo. Revisa tu conexión a internet y recarga la página.');
-                        }
-                    }, 100);
+                    return;
                 }
+
+                removeBgInitLoader.classList.remove('hidden');
+                removeBgContent.classList.add('hidden');
+
+                const checkLibrary = () => {
+                    if (typeof bgRemoval !== 'undefined' && typeof bgRemoval.removeBackground === 'function') {
+                        bgRemovalLibLoaded = true;
+                        removeBgInitLoader.classList.add('hidden');
+                        removeBgContent.classList.remove('hidden');
+                    } else {
+                        setTimeout(checkLibrary, 200);
+                    }
+                };
+                checkLibrary();
             }
 
             removeBgInput.addEventListener('change', async (event) => {
                 const file = event.target.files[0];
                 if (!file) return;
 
-                if (typeof bgRemoval === 'undefined' || typeof bgRemoval.removeBackground !== 'function') {
-                    showMessage('La herramienta para quitar fondo no está disponible. Por favor, espera a que cargue o revisa tu conexión a internet y recarga la página.');
+                if (!bgRemovalLibLoaded) {
+                    showMessage('La herramienta para quitar fondo todavía se está cargando. Por favor, espere un momento.');
                     return;
                 }
                 
@@ -1528,4 +1483,3 @@
     </script>
 </body>
 </html>
-
