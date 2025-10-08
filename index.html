@@ -60,6 +60,7 @@
             position: absolute;
             cursor: move;
             border: 1px dashed #0ea5e9;
+            z-index: 10;
         }
         #draggable-signature img {
             width: 100%;
@@ -1118,8 +1119,7 @@
                 isDragging: false,
                 isResizing: false,
                 offsetX: 0,
-                offsetY: 0,
-                page: null
+                offsetY: 0
             };
 
 
@@ -1211,7 +1211,7 @@
                         canvas.className = 'pdf-page-canvas shadow-lg';
                         const context = canvas.getContext('2d');
                         
-                        const containerWidth = pdfPagesContainer.clientWidth || 800;
+                        const containerWidth = pdfPagesContainer.clientWidth > 0 ? pdfPagesContainer.clientWidth : 800;
                         const scale = (containerWidth - 32) / viewport.width; 
                         const scaledViewport = page.getViewport({ scale: scale });
                         
@@ -1220,6 +1220,15 @@
                         canvas.dataset.pageNumber = i;
 
                         await page.render({ canvasContext: context, viewport: scaledViewport }).promise;
+                        
+                        canvas.addEventListener('click', (e) => {
+                            // PageX/Y son relativas a todo el documento, necesitamos coordenadas relativas al canvas
+                            const rect = canvas.getBoundingClientRect();
+                            const x = e.clientX - rect.left;
+                            const y = e.clientY - rect.top;
+                            placeSignature(x, y, canvas);
+                        });
+
                         pdfPagesContainer.appendChild(canvas);
                     }
                 } catch(e) {
@@ -1265,86 +1274,89 @@
                 }
             });
 
-            function placeSignature(pageX, pageY) {
+            function placeSignature(clickX, clickY, targetCanvas) {
                 if (!signatureDataUrl) {
                     showMessage("Primero guarda tu firma.");
                     return;
                 }
-                
-                // Si no hay firma, la crea. Si la hay, la mueve.
-                if (!activeSignature.element) {
-                    const signatureContainer = document.createElement('div');
-                    signatureContainer.id = 'draggable-signature';
-                    signatureContainer.style.width = '150px'; // Initial width
-                    signatureContainer.style.height = '75px'; // Initial height
 
-                    const signatureImg = document.createElement('img');
-                    signatureImg.src = signatureDataUrl;
-                    
-                    const resizeHandle = document.createElement('div');
-                    resizeHandle.id = 'resize-handle';
-                    
-                    signatureContainer.appendChild(signatureImg);
-                    signatureContainer.appendChild(resizeHandle);
-                    pdfPagesContainer.appendChild(signatureContainer);
-
-                    activeSignature.element = signatureContainer;
-
-                    // Dragging logic
-                    signatureContainer.addEventListener('mousedown', (e) => {
-                        activeSignature.isDragging = true;
-                        const rect = signatureContainer.getBoundingClientRect();
-                        const containerRect = pdfPagesContainer.getBoundingClientRect();
-                        activeSignature.offsetX = e.clientX - rect.left + containerRect.left;
-                        activeSignature.offsetY = e.clientY - rect.top + containerRect.top;
-                    });
-                    
-                    // Resizing logic
-                    resizeHandle.addEventListener('mousedown', (e) => {
-                        e.stopPropagation(); // Evita que empiece el drag
-                        activeSignature.isResizing = true;
-                    });
-
-                    applySignatureButton.classList.remove('hidden');
+                if (activeSignature.element) {
+                    activeSignature.element.remove();
                 }
                 
-                const containerRect = pdfPagesContainer.getBoundingClientRect();
-                activeSignature.element.style.left = `${pageX - containerRect.left - (activeSignature.element.offsetWidth / 2)}px`;
-                activeSignature.element.style.top = `${pageY - containerRect.top - (activeSignature.element.offsetHeight / 2)}px`;
+                const signatureContainer = document.createElement('div');
+                signatureContainer.id = 'draggable-signature';
+                signatureContainer.style.width = '150px'; 
+                signatureContainer.style.height = '75px';
+
+                const signatureImg = document.createElement('img');
+                signatureImg.src = signatureDataUrl;
+                
+                const resizeHandle = document.createElement('div');
+                resizeHandle.id = 'resize-handle';
+                
+                signatureContainer.appendChild(signatureImg);
+                signatureContainer.appendChild(resizeHandle);
+                
+                targetCanvas.parentNode.insertBefore(signatureContainer, targetCanvas.nextSibling);
+
+                activeSignature.element = signatureContainer;
+                activeSignature.page = targetCanvas; // Guardamos en qué canvas estamos
+
+                signatureContainer.style.left = `${targetCanvas.offsetLeft + clickX - (signatureContainer.offsetWidth / 2)}px`;
+                signatureContainer.style.top = `${targetCanvas.offsetTop + clickY - (signatureContainer.offsetHeight / 2)}px`;
+
+                // --- Eventos de Mover y Redimensionar ---
+                let initialMouseX, initialMouseY, initialWidth, initialHeight, initialLeft, initialTop;
+
+                signatureContainer.addEventListener('mousedown', (e) => {
+                    if (e.target.id === 'resize-handle') return; // No arrastrar si se está redimensionando
+                    e.preventDefault();
+                    activeSignature.isDragging = true;
+                    initialMouseX = e.clientX;
+                    initialMouseY = e.clientY;
+                    initialLeft = signatureContainer.offsetLeft;
+                    initialTop = signatureContainer.offsetTop;
+                });
+                
+                resizeHandle.addEventListener('mousedown', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    activeSignature.isResizing = true;
+                    initialMouseX = e.clientX;
+                    initialMouseY = e.clientY;
+                    initialWidth = signatureContainer.offsetWidth;
+                    initialHeight = signatureContainer.offsetHeight;
+                });
+
+                document.addEventListener('mousemove', (e) => {
+                    if (activeSignature.isDragging) {
+                        const dx = e.clientX - initialMouseX;
+                        const dy = e.clientY - initialMouseY;
+                        signatureContainer.style.left = `${initialLeft + dx}px`;
+                        signatureContainer.style.top = `${initialTop + dy}px`;
+                    }
+                    if (activeSignature.isResizing) {
+                        const dw = e.clientX - initialMouseX;
+                        const dh = e.clientY - initialMouseY;
+                        const newWidth = initialWidth + dw;
+                        // Mantenemos la proporción 2:1
+                        signatureContainer.style.width = `${Math.max(30, newWidth)}px`; 
+                        signatureContainer.style.height = `${Math.max(15, newWidth / 2)}px`;
+                    }
+                });
+
+                document.addEventListener('mouseup', () => {
+                    activeSignature.isDragging = false;
+                    activeSignature.isResizing = false;
+                });
+
+                applySignatureButton.classList.remove('hidden');
             }
-
-            document.addEventListener('mousemove', (e) => {
-                if (activeSignature.isDragging && activeSignature.element) {
-                    const containerRect = pdfPagesContainer.getBoundingClientRect();
-                    let newLeft = e.clientX - activeSignature.offsetX;
-                    let newTop = e.clientY - activeSignature.offsetY;
-                    
-                    // Constrain within the container
-                    newLeft = Math.max(0, Math.min(newLeft, containerRect.width - activeSignature.element.offsetWidth));
-                    newTop = Math.max(0, Math.min(newTop, containerRect.height - activeSignature.element.offsetHeight));
-
-                    activeSignature.element.style.left = `${newLeft}px`;
-                    activeSignature.element.style.top = `${newTop}px`;
-                }
-                if (activeSignature.isResizing && activeSignature.element) {
-                    const rect = activeSignature.element.getBoundingClientRect();
-                    const newWidth = e.clientX - rect.left;
-                    // Maintain aspect ratio (2:1)
-                    const newHeight = newWidth / 2;
-                    activeSignature.element.style.width = `${newWidth}px`;
-                    activeSignature.element.style.height = `${newHeight}px`;
-                }
-            });
-
-            document.addEventListener('mouseup', () => {
-                activeSignature.isDragging = false;
-                activeSignature.isResizing = false;
-            });
             
-            pdfPagesContainer.addEventListener('click', (e) => placeSignature(e.pageX, e.pageY));
 
             applySignatureButton.addEventListener('click', async () => {
-                if (!activeSignature.element) {
+                if (!activeSignature.element || !activeSignature.page) {
                     showMessage("Por favor, coloca la firma en el documento primero.");
                     return;
                 }
@@ -1354,29 +1366,8 @@
                 applySignatureButton.disabled = true;
 
                 try {
-                    // Determinar en qué página está la firma
-                    const sigRect = activeSignature.element.getBoundingClientRect();
-                    const pages = Array.from(pdfPagesContainer.querySelectorAll('.pdf-page-canvas'));
-                    let targetPageNum = -1;
-                    let targetCanvas = null;
-
-                    for (let i = 0; i < pages.length; i++) {
-                        const pageRect = pages[i].getBoundingClientRect();
-                        // Comprobar si el centro de la firma está dentro de esta página
-                        const sigCenterX = sigRect.left + sigRect.width / 2;
-                        const sigCenterY = sigRect.top + sigRect.height / 2;
-
-                        if (sigCenterX >= pageRect.left && sigCenterX <= pageRect.right &&
-                            sigCenterY >= pageRect.top && sigCenterY <= pageRect.bottom) {
-                            targetPageNum = i;
-                            targetCanvas = pages[i];
-                            break;
-                        }
-                    }
-
-                    if (targetPageNum === -1) {
-                        throw new Error("La firma no está sobre ninguna página.");
-                    }
+                    const targetCanvas = activeSignature.page;
+                    const targetPageNum = parseInt(targetCanvas.dataset.pageNumber) - 1;
                     
                     const pdfDoc = await PDFDocument.load(originalPdfBytes);
                     const pdfPage = pdfDoc.getPages()[targetPageNum];
